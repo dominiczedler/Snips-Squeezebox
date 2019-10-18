@@ -47,22 +47,26 @@ def get_slots(data):
 class Snapcast:
     def __init__(self):
         self.site_devices = dict()
+        self.request_siteid = None
         self.threadobj_injection = None
 
 
 def thread_delayed_injection():
-    time.sleep(3)
+    time.sleep(2)
     all_names = list()
     for site_id in snapcast.site_devices:
         for name in snapcast.site_devices[site_id]:
             if name not in all_names:
                 all_names.append(name)
-    inject(mqtt_client, 'audio_devices', all_names, 'device_names')
+    inject(mqtt_client, 'audio_devices', all_names, snapcast.request_siteid)
     snapcast.site_devices = dict()
 
 
 def msg_ask_site_devices(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    snapcast.request_siteid = data['siteId']
     client.publish('snapcast/request/allSites/siteDevices')
+    end_session(client, data['sessionId'], "Die Gerätenamen werden jetzt zu Snips hinzugefügt.")
 
 
 def msg_result_site_devices(client, userdata, msg):
@@ -76,7 +80,7 @@ def msg_result_site_devices(client, userdata, msg):
 
 def msg_injection_complete(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", data['siteId'])
+    notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", data['requestId'])
 
 
 def end_session(client, session_id, text=None):

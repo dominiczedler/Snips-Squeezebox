@@ -70,6 +70,7 @@ def msg_result_site_devices(client, userdata, msg):
     if not snapcast.site_devices:
         snapcast.threadobj_injection = None
         snapcast.threadobj_injection = threading.Thread(target=thread_delayed_injection)
+        snapcast.threadobj_injection.start()
     snapcast.site_devices[data['site_id']] = data['names']
 
 

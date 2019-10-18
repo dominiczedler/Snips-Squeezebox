@@ -66,7 +66,7 @@ def msg_ask_site_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     snapcast.request_siteid = data['siteId']
     client.publish('snapcast/request/allSites/siteDevices')
-    end_session(client, data['sessionId'], "Die Gerätenamen werden jetzt zu Snips hinzugefügt.")
+    end_session(client, data['sessionId'], "Die Gerätenamen werden jetzt zu der lokalen Spracherkennung hinzugefügt.")
 
 
 def msg_result_site_devices(client, userdata, msg):

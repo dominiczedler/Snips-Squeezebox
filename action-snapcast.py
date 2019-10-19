@@ -105,7 +105,7 @@ def msg_ask_inject_music(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     snapcast.request_siteid = data['siteId']
     client.publish('snapcast/request/allSites/siteMusic')
-    end_session(client, data['sessionId'], "Die Musik wird jetzt zu der lokalen Spracherkennung hinzugefügt.")
+    end_session(client, data['sessionId'], "Die Musik wird jetzt zur Spracherkennung hinzugefügt.")
 
 
 def msg_result_site_music(client, userdata, msg):

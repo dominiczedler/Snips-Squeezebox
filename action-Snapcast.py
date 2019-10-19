@@ -114,10 +114,11 @@ def msg_result_site_music(client, userdata, msg):
     if not snapcast.site_music:
         snapcast.threadobj_injection = threading.Thread(target=thread_delayed_music_injection)
         snapcast.threadobj_injection.start()
-    snapcast.site_devices[data['site_id']] = data
+    snapcast.site_music[data['site_id']] = data
 
 
 def msg_injection_complete(client, userdata, msg):
+    # TODO: Make requestId -> UUID; the SiteId must be saved
     data = json.loads(msg.payload.decode("utf-8"))
     notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", data['requestId'])
 

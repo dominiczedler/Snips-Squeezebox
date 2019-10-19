@@ -154,7 +154,7 @@ def msg_ask_play_music(client, userdata, msg):
 
 def msg_result_play_music(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    notify(client, data['err'], data['siteId'])
+    notify(client, data['err'], data['site_id'])
 
 
 def end_session(client, session_id, text=None):

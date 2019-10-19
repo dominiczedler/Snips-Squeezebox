@@ -89,7 +89,7 @@ def thread_delayed_music_injection():
 def msg_ask_inject_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     snapcast.request_siteid = data['siteId']
-    client.publish('snapcast/request/allSites/siteDevices')
+    client.publish('snapcast/request/allSites/siteMusic')
     end_session(client, data['sessionId'], "Die Gerätenamen werden jetzt zu der lokalen Spracherkennung hinzugefügt.")
 
 

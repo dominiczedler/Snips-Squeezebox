@@ -167,6 +167,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('snapcast/answer/siteDevices', msg_result_site_devices)
+    client.message_callback_add('snapcast/answer/siteMusic', msg_result_site_music)
     client.subscribe('snapcast/answer/#')
 
 

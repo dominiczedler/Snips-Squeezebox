@@ -64,7 +64,7 @@ def thread_delayed_device_injection():
 
 
 def thread_delayed_music_injection():
-    time.sleep(3)
+    time.sleep(4)
     artists = list()
     albums = list()
     titles = list()
@@ -78,6 +78,7 @@ def thread_delayed_music_injection():
         for title in snapcast.site_music[site_id]['titles']:
             if title not in titles:
                 titles.append(title)
+    print(artists, albums, titles)
     operations = [('addFromVanilla', {'snapcast_artists': artists}),
                   ('addFromVanilla', {'snapcast_albums': albums}),
                   ('addFromVanilla', {'snapcast_titles': titles})]

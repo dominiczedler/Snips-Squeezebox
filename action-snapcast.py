@@ -47,22 +47,46 @@ def get_slots(data):
 class Snapcast:
     def __init__(self):
         self.site_devices = dict()
+        self.site_music = dict()
         self.request_siteid = None
         self.threadobj_injection = None
 
 
-def thread_delayed_injection():
+def thread_delayed_device_injection():
     time.sleep(2)
     all_names = list()
     for site_id in snapcast.site_devices:
         for name in snapcast.site_devices[site_id]:
             if name not in all_names:
                 all_names.append(name)
-    inject(mqtt_client, 'audio_devices', all_names, snapcast.request_siteid)
+    inject(mqtt_client, 'audio_devices', all_names, snapcast.request_siteid, 'addFromVanilla')
     snapcast.site_devices = dict()
 
 
-def msg_ask_site_devices(client, userdata, msg):
+def thread_delayed_music_injection():
+    time.sleep(3)
+    artists = list()
+    albums = list()
+    titles = list()
+    for site_id in snapcast.site_music:
+        for artist in snapcast.site_music[site_id]['artists']:
+            if artist not in artists:
+                artists.append(artist)
+        for album in snapcast.site_music[site_id]['albums']:
+            if album not in albums:
+                albums.append(album)
+        for title in snapcast.site_music[site_id]['titles']:
+            if title not in titles:
+                titles.append(title)
+    operations = [('addFromVanilla', {'snapcast_artists': artists}),
+                  ('addFromVanilla', {'snapcast_albums': albums}),
+                  ('addFromVanilla', {'snapcast_titles': titles})]
+    mqtt_client.publish('hermes/injection/perform', json.dumps({'id': snapcast.request_siteid,
+                                                                'operations': operations}))
+    snapcast.site_music = dict()
+
+
+def msg_ask_inject_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     snapcast.request_siteid = data['siteId']
     client.publish('snapcast/request/allSites/siteDevices')
@@ -72,15 +96,33 @@ def msg_ask_site_devices(client, userdata, msg):
 def msg_result_site_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     if not snapcast.site_devices:
-        snapcast.threadobj_injection = None
-        snapcast.threadobj_injection = threading.Thread(target=thread_delayed_injection)
+        snapcast.threadobj_injection = threading.Thread(target=thread_delayed_device_injection)
         snapcast.threadobj_injection.start()
     snapcast.site_devices[data['site_id']] = data['names']
+
+
+def msg_ask_inject_music(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    snapcast.request_siteid = data['siteId']
+    client.publish('snapcast/request/allSites/siteMusic')
+    end_session(client, data['sessionId'], "Die Musik wird jetzt zu der lokalen Spracherkennung hinzugefügt.")
+
+
+def msg_result_site_music(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    if not snapcast.site_music:
+        snapcast.threadobj_injection = threading.Thread(target=thread_delayed_music_injection)
+        snapcast.threadobj_injection.start()
+    snapcast.site_devices[data['site_id']] = data
 
 
 def msg_injection_complete(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", data['requestId'])
+
+
+def msg_ask_play_music(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
 
 
 def end_session(client, session_id, text=None):
@@ -115,9 +157,13 @@ def dialogue(client, session_id, text, intent_filter, custom_data=None):
 
 
 def on_connect(client, userdata, flags, rc):
-    client.message_callback_add('hermes/intent/' + add_prefix('snapcastInjectDevices'), msg_ask_site_devices)
+    client.message_callback_add('hermes/intent/' + add_prefix('snapcastInjectDevices'), msg_ask_inject_devices)
+    client.message_callback_add('hermes/intent/' + add_prefix('snapcastInjectMusic'), msg_ask_inject_music)
+    client.message_callback_add('hermes/intent/' + add_prefix('snapcastMusicPlay'), msg_ask_play_music)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('snapcastInjectDevices'))
+    client.subscribe('hermes/intent/' + add_prefix('snapcastInjectMusic'))
+    client.subscribe('hermes/intent/' + add_prefix('snapcastMusicPlay'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('snapcast/answer/siteDevices', msg_result_site_devices)

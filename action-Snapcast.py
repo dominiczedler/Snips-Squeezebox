@@ -7,6 +7,7 @@ import toml
 import configparser
 import threading
 import time
+import uuid
 
 
 USERNAME_INTENTS = "domi"
@@ -70,11 +71,11 @@ class Snapcast:
     def __init__(self):
         self.site_info = dict()
         self.site_music = dict()
-        self.request_siteid = None
+        self.inject_requestids = dict()
         self.threadobj_injection = None
 
 
-def thread_delayed_music_injection():
+def thread_delayed_music_injection(site_id):
     time.sleep(3)
     artists = set()
     albums = set()
@@ -93,21 +94,24 @@ def thread_delayed_music_injection():
                   ('addFromVanilla', {'snapcast_albums': list(albums)}),
                   ('addFromVanilla', {'snapcast_titles': list(titles)}),
                   ('addFromVanilla', {'snapcast_genres': list(genres)})]
-    mqtt_client.publish('hermes/injection/perform', json.dumps({'id': snapcast.request_siteid,
+    request_id = str(uuid.uuid4())
+    snapcast.inject_requestids[request_id] = site_id
+    mqtt_client.publish('hermes/injection/perform', json.dumps({'id': request_id,
                                                                 'operations': operations}))
     snapcast.site_music = dict()
 
 
 def msg_ask_inject_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    snapcast.request_siteid = data['siteId']
+    request_id = str(uuid.uuid4())
+    snapcast.inject_requestids[request_id] = data['siteId']
     end_session(client, data['sessionId'], "Die Gerätenamen werden zur Spracherkennung hinzugefügt.")
     device_names = set()
     for site_id in snapcast.site_info:
         for device in snapcast.site_info[site_id]['devices']:
             for name in device['names_list']:
                 device_names.add(name)
-    inject(client, 'audio_devices', list(device_names), snapcast.request_siteid, 'addFromVanilla')
+    inject(client, 'audio_devices', list(device_names), request_id, 'addFromVanilla')
 
 
 def msg_result_site_info(client, userdata, msg):
@@ -125,15 +129,17 @@ def msg_ask_inject_music(client, userdata, msg):
 def msg_result_site_music(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     if not snapcast.site_music:
-        snapcast.threadobj_injection = threading.Thread(target=thread_delayed_music_injection)
+        snapcast.threadobj_injection = threading.Thread(target=thread_delayed_music_injection,
+                                                        args=(data['siteId'],))
         snapcast.threadobj_injection.start()
     snapcast.site_music[data['site_id']] = data
 
 
 def msg_injection_complete(client, userdata, msg):
-    # TODO: Make requestId -> UUID; the SiteId must be saved
     data = json.loads(msg.payload.decode("utf-8"))
-    notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", data['requestId'])
+    if data['requestId'] in snapcast.inject_requestids:
+        site_id = snapcast.inject_requestids[data['requestId']]
+        notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", site_id)
 
 
 def msg_ask_play_music(client, userdata, msg):

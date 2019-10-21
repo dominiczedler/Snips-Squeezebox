@@ -75,24 +75,24 @@ class Snapcast:
 
 
 def thread_delayed_music_injection():
-    time.sleep(4)
-    artists = list()
-    albums = list()
-    titles = list()
+    time.sleep(3)
+    artists = set()
+    albums = set()
+    titles = set()
+    genres = set()
     for site_id in snapcast.site_music:
         for artist in snapcast.site_music[site_id]['artists']:
-            if artist not in artists:
-                artists.append(artist)
+            artists.add(artist)
         for album in snapcast.site_music[site_id]['albums']:
-            if album not in albums:
-                albums.append(album)
+            albums.add(album)
         for title in snapcast.site_music[site_id]['titles']:
-            if title not in titles:
-                titles.append(title)
-    print(artists, albums, titles)
-    operations = [('addFromVanilla', {'snapcast_artists': artists}),
-                  ('addFromVanilla', {'snapcast_albums': albums}),
-                  ('addFromVanilla', {'snapcast_titles': titles})]
+            titles.add(title)
+        for genre in snapcast.site_music[site_id]['genres']:
+            genres.add(genre)
+    operations = [('addFromVanilla', {'snapcast_artists': list(artists)}),
+                  ('addFromVanilla', {'snapcast_albums': list(albums)}),
+                  ('addFromVanilla', {'snapcast_titles': list(titles)}),
+                  ('addFromVanilla', {'snapcast_genres': list(genres)})]
     mqtt_client.publish('hermes/injection/perform', json.dumps({'id': snapcast.request_siteid,
                                                                 'operations': operations}))
     snapcast.site_music = dict()
@@ -102,18 +102,12 @@ def msg_ask_inject_devices(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     snapcast.request_siteid = data['siteId']
     end_session(client, data['sessionId'], "Die Gerätenamen werden zur Spracherkennung hinzugefügt.")
-    all_names = list()
+    device_names = set()
     for site_id in snapcast.site_info:
-        for name in snapcast.site_info[site_id]['available_blt_devices']:
-            if name not in all_names:
-                all_names.append(name)
-        for name in snapcast.site_info[site_id]['conf_blt_devices']:
-            if name not in all_names:
-                all_names.append(name)
-        for name in snapcast.site_info[site_id]['conf_nonblt_devices']:
-            if name not in all_names:
-                all_names.append(name)
-    inject(client, 'audio_devices', all_names, snapcast.request_siteid, 'addFromVanilla')
+        for device in snapcast.site_info[site_id]['devices']:
+            for name in device['names_list']:
+                device_names.add(name)
+    inject(client, 'audio_devices', list(device_names), snapcast.request_siteid, 'addFromVanilla')
 
 
 def msg_result_site_info(client, userdata, msg):

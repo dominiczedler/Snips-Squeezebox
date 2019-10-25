@@ -602,6 +602,8 @@ class LMSPlayer(LMSUtils):
                 query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
             if not album and not title:
                 self.request(f"playlist shuffle 1")
+            else:
+                self.request(f"playlist shuffle 0")
             self.request(f"playlist loadtracks {'&'.join(query_params)}")
             return True
 

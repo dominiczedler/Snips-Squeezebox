@@ -6,6 +6,7 @@
 
 from .tags import LMSTags
 from .utils import LMSUtils
+import requests
 
 
 DETAILED_TAGS = [LMSTags.ARTIST,
@@ -587,3 +588,22 @@ class LMSPlayer(LMSUtils):
 
             else:
                 return [LMSPlayer(ref, self.server) for ref in sync.split(",")]
+
+    def new_music(self, artist, album, title, genre):
+        try:
+            query_params = list()
+            if artist:
+                query_params.append(f"contributor.namesearch={'+'.join(artist.split(' '))}")
+            if album:
+                query_params.append(f"album.titlesearch={'+'.join(album.split(' '))}")
+            if title:
+                query_params.append(f"track.titlesearch={'+'.join(title.split(' '))}")
+            if genre:
+                query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
+            if not album and not title:
+                self.request(f"playlist shuffle 1")
+            self.request(f"playlist loadtracks {'&'.join(query_params)}")
+            return True
+
+        except requests.exceptions.ConnectionError:
+            return False

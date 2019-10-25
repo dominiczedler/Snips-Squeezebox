@@ -1,0 +1,2 @@
+[secret]
+lms_api_location="localhost:9000"

@@ -51,9 +51,10 @@ class Squeezebox:
 
 def msg_ask_inject_names(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
+    end_session(client, data['sessionId'], "Die Namen werden zur Spracherkennung hinzugefügt.")
+
     err, all_names = lmsctl.get_music_names()
     if not err:
-        end_session(client, data['sessionId'], "Die Namen werden zur Spracherkennung hinzugefügt.")
         operations = [('addFromVanilla', {'squeezebox_artists': all_names['artists']}),
                       ('addFromVanilla', {'squeezebox_albums': all_names['albums']}),
                       ('addFromVanilla', {'squeezebox_titles': all_names['titles']}),

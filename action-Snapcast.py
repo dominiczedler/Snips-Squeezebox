@@ -51,7 +51,7 @@ class Squeezebox:
 
 def msg_ask_inject_names(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    end_session(client, data['sessionId'], "Die Namen werden zur Spracherkennung hinzugefügt.")
+    end_session(client, data['sessionId'])
 
     err, all_names = lmsctl.get_music_names()
     if not err:
@@ -65,8 +65,8 @@ def msg_ask_inject_names(client, userdata, msg):
         mqtt_client.publish('hermes/injection/perform', json.dumps({'id': request_id,
                                                                     'operations': operations}))
     else:
-        end_session(client, data['sessionId'], "Die Namen konnten nicht gesammelt werden. "
-                                               "Es besteht keine Verbindung zum Medien Server.")
+        notify(client, "Die Namen konnten nicht gesammelt werden. "
+                       "Es besteht keine Verbindung zum Medien Server.", data['siteId'])
 
 
 def msg_injection_complete(client, userdata, msg):

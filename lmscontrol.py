@@ -45,7 +45,7 @@ class LMSController:
             playlists = self.lmserver.request(params="playlists list")
             if playlists.get('count') >= 1:
                 for playlist_dict in playlists.get('playlists_loop'):
-                    playlist = playlist_dict['album']
+                    playlist = playlist_dict['playlist']
                     if playlist not in all_playlists:
                         all_playlists.append(playlist)
 

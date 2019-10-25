@@ -84,7 +84,7 @@ def msg_inject_names(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     end_session(client, data['sessionId'])
 
-    err, all_names = lmsctl.get_music_names()
+    err, all_names = lm_server.get_music_names()
     if not err:
         operations = [('addFromVanilla', {'squeezebox_artists': all_names['artists']}),
                       ('addFromVanilla', {'squeezebox_albums': all_names['albums']}),

@@ -5,6 +5,7 @@ This code uses the JSON interface.
 
 import requests
 from .player import LMSPlayer
+import re
 
 
 class LMSConnectionError(Exception):

@@ -132,6 +132,13 @@ def msg_music_pause(client, userdata, msg):
     end_session(client, data['sessionId'])
 
 
+def msg_music_play(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    lmsctl.current_action[data['siteId']] = "start"
+    lmsctl.play_music(get_slots(data), data['siteId'])
+    end_session(client, data['sessionId'])
+
+
 def end_session(client, session_id, text=None):
     if text:
         payload = {'text': text, 'sessionId': session_id}
@@ -167,10 +174,12 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxInjectNames'), msg_inject_names)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicNew'), msg_music_new)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPause'), msg_music_pause)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPlay'), msg_music_play)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPause'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPlay'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)

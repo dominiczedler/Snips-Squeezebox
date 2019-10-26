@@ -89,6 +89,26 @@ class LMSController:
             else:
                 return None, self.sites_info[request_siteid]
 
+    def get_all_site_names(self):
+        all_rooms = list()
+        all_devices = list()
+        all_areas = list()
+        for site_id in self.sites_info:
+            if self.sites_info[site_id]['room_name'] not in all_rooms:
+                all_rooms.append(self.sites_info[site_id]['room_name'])
+            if self.sites_info[site_id]['area'] not in all_areas:
+                all_areas.append(self.sites_info[site_id]['area'])
+            for device in self.sites_info[site_id]['devices']:
+                for name in device['names_list']:
+                    if name not in all_devices:
+                        all_devices.append(name)
+        all_names = {
+            'rooms': all_rooms,
+            'areas': all_areas,
+            'devices': all_devices
+        }
+        return all_names
+
     def get_player(self, site_info):
         player = self.server.get_player_from_name(site_info['room_name'])
         if player:

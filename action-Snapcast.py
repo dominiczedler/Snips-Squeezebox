@@ -58,20 +58,25 @@ def msg_inject_names(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     end_session(client, data['sessionId'])
 
-    err, all_names = lmsctl.get_music_names()
-    if not err:
-        operations = [('addFromVanilla', {'squeezebox_artists': all_names['artists']}),
-                      ('addFromVanilla', {'squeezebox_albums': all_names['albums']}),
-                      ('addFromVanilla', {'squeezebox_titles': all_names['titles']}),
-                      ('addFromVanilla', {'squeezebox_playlists': all_names['playlists']}),
-                      ('addFromVanilla', {'squeezebox_genres': all_names['genres']})]
-        request_id = str(uuid.uuid4())
-        squeezebox.inject_requestids[request_id] = data['siteId']
-        mqtt_client.publish('hermes/injection/perform', json.dumps({'id': request_id,
-                                                                    'operations': operations}))
-    else:
-        notify(client, "Die Namen konnten nicht gesammelt werden. "
-                       "Es besteht keine Verbindung zum Medien Server.", data['siteId'])
+    all_site_names = lmsctl.get_all_site_names()
+    err, all_music_names = lmsctl.get_music_names()
+    if err:
+        text = "Die Namen konnten nicht gesammelt werden. Es besteht keine Verbindung zum Medien Server."
+        notify(client, text, data['siteId'])
+        return
+
+    operations = [('addFromVanilla', {'squeezebox_artists': all_music_names['artists']}),
+                  ('addFromVanilla', {'squeezebox_albums': all_music_names['albums']}),
+                  ('addFromVanilla', {'squeezebox_titles': all_music_names['titles']}),
+                  ('addFromVanilla', {'squeezebox_playlists': all_music_names['playlists']}),
+                  ('addFromVanilla', {'squeezebox_genres': all_music_names['genres']}),
+                  ('addFromVanilla', {'audio_devices': all_site_names['devices']}),
+                  ('addFromVanilla', {'squeezebox_rooms': all_site_names['rooms']}),
+                  ('addFromVanilla', {'squeezebox_areas': all_site_names['areas']})]
+    request_id = str(uuid.uuid4())
+    squeezebox.inject_requestids[request_id] = data['siteId']
+    payload = {'id': request_id, 'operations': operations}
+    mqtt_client.publish('hermes/injection/perform', json.dumps(payload))
 
 
 def msg_injection_complete(client, userdata, msg):
@@ -100,6 +105,9 @@ def msg_result_bluetooth_connect(client, userdata, msg):
             err = lmsctl.new_music(slot_dict, request_siteid, pending_action)
             if err:
                 notify(mqtt_client, err, request_siteid)
+    elif site_id in lmsctl.pending_actions and not data['result']:
+        request_siteid = lmsctl.pending_actions[site_id]['request_siteid']
+        notify(mqtt_client, "Das Gerät konnte nicht verbunden werden.", request_siteid)
 
 
 def start_listening_received(client, userdata, msg):

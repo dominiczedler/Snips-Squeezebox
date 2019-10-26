@@ -39,7 +39,6 @@ def get_slots(data):
             elif slot['value']['kind'] == "Custom":
                 slot_dict[slot['slotName']] = slot['value']['value']
     except (KeyError, TypeError, ValueError) as e:
-        print("Error: ", e)
         slot_dict = {}
     return slot_dict
 
@@ -91,6 +90,8 @@ def msg_music_new(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.new_music(slot_dict, data['siteId'])
+    if not err:
+        lmsctl.current_action[data['siteid']] = "new_music"
     end_session(client, data['sessionId'], err)
 
 
@@ -112,20 +113,21 @@ def msg_result_bluetooth_connect(client, userdata, msg):
 
 def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if lmsctl.sites_info[data['siteId']]['auto_pause']:
-        lmsctl.auto_paused[data['siteId']] = True
+    if data['siteId'] in lmsctl.sites_info and lmsctl.sites_info[data['siteId']]['auto_pause']:
+        lmsctl.current_action[data['siteId']] = "auto_pause"
         lmsctl.pause_music(get_slots(data), data['siteId'])
 
 
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if lmsctl.sites_info[data['siteId']]['auto_pause'] and data['siteId'] in lmsctl.auto_paused:
-        del lmsctl.auto_paused[data['siteId']]
+    if data['siteId'] in lmsctl.current_action and lmsctl.current_action[data['siteId']] == "auto_pause":
+        lmsctl.current_action[data['siteid']] = "play"
         lmsctl.play_music(get_slots(data), data['siteId'])
 
 
 def msg_music_pause(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
+    lmsctl.current_action[data['siteid']] = "pause"
     lmsctl.pause_music(get_slots(data), data['siteId'])
 
 

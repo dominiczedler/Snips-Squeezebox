@@ -10,7 +10,7 @@ class LMSController:
         self.server = LMSTools.LMSServer(lms_host, lms_port)
         self.sites_info = dict()
         self.pending_actions = dict()
-        self.auto_paused = dict()
+        self.current_action = dict()
 
     def get_music_names(self):
         try:

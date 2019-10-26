@@ -94,7 +94,7 @@ class LMSController:
         if player:
             return None, player
         else:
-            return "Dieses Gerät gibt es nicht.", None
+            return "Diesen Player gibt es nicht.", None
 
     def new_music(self, slot_dict, request_siteid, pending_action=None):
 
@@ -118,7 +118,7 @@ class LMSController:
                                                           'slot_dict': slot_dict,
                                                           'request_siteid': request_siteid}
             self.mqtt_client.publish(f'bluetooth/request/oneSite/{site_info["site_id"]}/deviceConnect',
-                                     json.dumps({'addr': addr}))
+                                     json.dumps({'addr': addr, 'channel': 'squeezebox'}))
             return None
         else:
             del self.pending_actions[site_info['site_id']]

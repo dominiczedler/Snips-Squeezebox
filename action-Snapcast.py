@@ -168,8 +168,10 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_bluetooth_connect)
     client.subscribe('bluetooth/answer/deviceConnect')
 
-    client.subscribe('hermes/asr/startListening', start_listening_received)
-    client.subscribe('hermes/dialogueManager/sessionEnded', session_ended_received)
+    client.message_callback_add('hermes/asr/startListening', start_listening_received)
+    client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)
+    client.subscribe('hermes/asr/startListening')
+    client.subscribe('hermes/dialogueManager/sessionEnded')
 
 
 if __name__ == "__main__":

@@ -50,7 +50,9 @@ class Squeezebox:
 
 def msg_result_site_info(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.sites_info[data['site_id']] = data
+    if not lmsctl.sites_dict.get(data['site_id']):
+        lmsctl.sites_dict[data['site_id']] = lmscontroller.Site()
+    lmsctl.sites_dict[data['site_id']].update(data, lmsctl.server)
 
 
 def msg_inject_names(client, userdata, msg):
@@ -90,52 +92,61 @@ def msg_music_new(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.new_music(slot_dict, data['siteId'])
-    if not err:
-        lmsctl.current_action[data['siteId']] = "new_music"
     end_session(client, data['sessionId'], err)
 
 
 def msg_result_bluetooth_connect(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    site_id = data['siteId']
-    if site_id in lmsctl.pending_actions and data['result']:
-        pending_action = lmsctl.pending_actions[site_id]['pending_action']
-        if pending_action == "new_music":
-            slot_dict = lmsctl.pending_actions[site_id]['slot_dict']
-            request_siteid = lmsctl.pending_actions[site_id]['request_siteid']
-            err = lmsctl.new_music(slot_dict, request_siteid, pending_action)
+
+    err, site = lmsctl.get_site(data['siteId'])
+    if err:
+        return err
+
+    if site.pending_action and data['result']:
+        if site.pending_action['action'] == "new_music":
+            slot_dict = site.pending_action['slot_dict']
+            request_siteid = site.pending_action['request_siteid']
+            err = lmsctl.new_music(slot_dict, request_siteid)
             if err:
                 notify(mqtt_client, err, request_siteid)
-    elif site_id in lmsctl.pending_actions and not data['result']:
-        request_siteid = lmsctl.pending_actions[site_id]['request_siteid']
+
+    elif site.pending_action and not data['result']:
+        request_siteid = site.pending_action['request_siteid']
+        site.pending_action = None
         notify(mqtt_client, "Das Gerät konnte nicht verbunden werden.", request_siteid)
 
 
 def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if data['siteId'] in lmsctl.sites_info and lmsctl.sites_info[data['siteId']]['auto_pause']:
-        lmsctl.current_action[data['siteId']] = "auto_pause"
+    err, site = lmsctl.get_site(data['siteId'])
+    if not err and site.auto_pause:
+        site.auto_pause_status = True
         lmsctl.pause_music(get_slots(data), data['siteId'])
 
 
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if data['siteId'] in lmsctl.current_action and lmsctl.current_action[data['siteId']] == "auto_pause":
-        lmsctl.current_action[data['siteId']] = "play"
+    err, site = lmsctl.get_site(data['siteId'])
+    if not err and site.auto_pause_status:
+        site.auto_pause_status = False
         lmsctl.play_music(get_slots(data), data['siteId'])
 
 
 def msg_music_pause(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.current_action[data['siteId']] = "pause"
     lmsctl.pause_music(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'])
 
 
 def msg_music_play(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.current_action[data['siteId']] = "start"
     lmsctl.play_music(get_slots(data), data['siteId'])
+    end_session(client, data['sessionId'])
+
+
+def msg_volume_change(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    lmsctl.change_volume(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'])
 
 
@@ -183,8 +194,10 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
-    client.message_callback_add('squeezebox/answer/deviceConnect', msg_result_bluetooth_connect)
     client.subscribe('squeezebox/answer/#')
+
+    client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_bluetooth_connect)
+    client.subscribe('bluetooth/answer/deviceConnect')
 
     client.message_callback_add('hermes/dialogueManager/sessionStarted', session_started_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)

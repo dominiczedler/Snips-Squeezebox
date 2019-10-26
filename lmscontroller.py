@@ -4,13 +4,72 @@ import json
 import re
 
 
+class Device:
+    def __init__(self, device_dict):
+        self.name = device_dict['name']
+        self.names_list = device_dict['names_list']
+        self.synonym = device_dict['synonym']
+        self.bluetooth = device_dict['bluetooth']
+        self.mac = device_dict['squeezelite_mac']
+        self.soundcard = device_dict['soundcard']
+        self.player = None
+
+
+class Site:
+    def __init__(self):
+        self.room_name = None
+        self.site_id = None
+        self.area = None
+        self.auto_pause = None
+        self.auto_pause_status = False
+        self.default_device_name = None
+        self.devices_dict = dict()
+        self.pending_action = dict()
+
+    def update(self, data, server):
+        self.room_name = data['room_name']
+        self.site_id = data['site_id']
+        self.area = data['area']
+        self.auto_pause = data['auto_pause']
+        self.default_device_name = data['default_device']
+
+        for device_dict in data['devices']:
+            if device_dict['squeezelite_mac'] not in self.devices_dict:
+                device = Device(device_dict)
+                self.devices_dict[device.mac] = device
+
+            device = self.devices_dict[device_dict['squeezelite_mac']]
+            device.name = device_dict['name']
+            device.names_list = device_dict['names_list']
+            device.synonym = device_dict['synonym']
+            device.bluetooth = device_dict['bluetooth']
+            device.mac = device_dict['squeezelite_mac']
+            device.soundcard = device_dict['soundcard']
+            try:
+                device.player = LMSTools.LMSPlayer(device.mac, server)
+            except requests.ConnectionError:
+                device.player = None
+
+    def get_device(self, slot_dict):
+        if 'device' in slot_dict:
+            found = [self.devices_dict[mac] for mac in self.devices_dict
+                     if slot_dict['device'] in self.devices_dict[mac].names_list]
+        else:
+            found = [self.devices_dict[mac] for mac in self.devices_dict
+                     if self.devices_dict[mac].default_device_name in self.devices_dict[mac].names_list]
+        if not found:
+            return f"Dieses Gerät gibt es im Raum {self.room_name} nicht.", None
+        else:
+            return None, found[0]
+
+
 class LMSController:
     def __init__(self, mqtt_client, lms_host, lms_port):
         self.mqtt_client = mqtt_client
         self.server = LMSTools.LMSServer(lms_host, lms_port)
-        self.sites_info = dict()
+        self.sites_dict = dict()
         self.pending_actions = dict()
-        self.current_action = dict()
+        self.current_status = dict()
 
     def get_music_names(self):
         try:
@@ -66,40 +125,43 @@ class LMSController:
         except requests.exceptions.ConnectionError:
             return True, None
 
-    def get_site_info(self, slot_dict, request_siteid):
-        if slot_dict.get('room'):
+    def get_site(self, request_siteid, slot_dict=None):
+        if slot_dict and slot_dict.get('room'):
             if slot_dict.get('room') == "hier":
-                if request_siteid not in self.sites_info:
+                if not self.sites_dict.get(request_siteid):
                     return "Dieser Raum hier wurde noch nicht konfiguriert.", None
                 else:
-                    return None, self.sites_info[request_siteid]
+                    return None, self.sites_dict[request_siteid]
             elif slot_dict.get('room') == "alle":
-                # TODO: return all site_infos
-                return None, self.sites_info[request_siteid]
+                # TODO: return all sites
+                return None, self.sites_dict[request_siteid]
             else:
-                dict_rooms = {self.sites_info[siteid]['room_name']: self.sites_info[siteid]
-                              for siteid in self.sites_info}
+                dict_rooms = {self.sites_dict[siteid].room_name: self.sites_dict[siteid]
+                              for siteid in self.sites_dict}
                 if slot_dict.get('room') not in dict_rooms:
                     return f"Der Raum {slot_dict.get('room')} wurde noch nicht konfiguriert.", None
                 else:
                     return None, dict_rooms[slot_dict.get('rooms')]
         else:
-            if request_siteid not in self.sites_info:
+            if not self.sites_dict.get(request_siteid):
                 return "Dieser Raum hier wurde noch nicht konfiguriert.", None
             else:
-                return None, self.sites_info[request_siteid]
+                return None, self.sites_dict[request_siteid]
 
     def get_all_site_names(self):
         all_rooms = list()
         all_devices = list()
         all_areas = list()
-        for site_id in self.sites_info:
-            if self.sites_info[site_id]['room_name'] not in all_rooms:
-                all_rooms.append(self.sites_info[site_id]['room_name'])
-            if self.sites_info[site_id]['area'] not in all_areas:
-                all_areas.append(self.sites_info[site_id]['area'])
-            for device in self.sites_info[site_id]['devices']:
-                for name in device['names_list']:
+        for site_id in self.sites_dict:
+            if self.sites_dict[site_id].room_name not in all_rooms:
+                all_rooms.append(self.sites_dict[site_id].room_name)
+
+            if self.sites_dict[site_id].area not in all_areas:
+                all_areas.append(self.sites_dict[site_id].area)
+
+            for device_name in self.sites_dict[site_id].devices_dict:
+                device = self.sites_dict[site_id].devices_dict[device_name]
+                for name in device.names_list:
                     if name not in all_devices:
                         all_devices.append(name)
         all_names = {
@@ -116,36 +178,36 @@ class LMSController:
         else:
             return "Diesen Player gibt es nicht.", None
 
-    def new_music(self, slot_dict, request_siteid, pending_action=None):
+    def new_music(self, slot_dict, request_siteid):
 
-        err, site_info = self.get_site_info(slot_dict, request_siteid)
+        err, site = self.get_site(request_siteid, slot_dict)
         if err:
             return err
 
-        if not pending_action:
-            if 'device' in slot_dict:
-                found = [d['bluetooth']['addr'] for d in site_info['devices']
-                         if slot_dict['device'] in d['names_list']]
-                if not found:
-                    return "Dieses Gerät gibt es nicht."
-                else:
-                    addr = found[0]
-            else:
-                found = [d['bluetooth']['addr'] for d in site_info['devices']
-                         if d['name'] == site_info['default_device']]
-                addr = found[0]
-            self.pending_actions[site_info['site_id']] = {'pending_action': "new_music",
-                                                          'slot_dict': slot_dict,
-                                                          'request_siteid': request_siteid}
-            self.mqtt_client.publish(f'bluetooth/request/oneSite/{site_info["site_id"]}/deviceConnect',
-                                     json.dumps({'addr': addr, 'channel': 'squeezebox'}))
-            return None
+        err, device = site.get_device(slot_dict)
+        if err:
+            return err
+
+        if not site.pending_action:
+            # Connect bluetooth device if necessary
+            if device.bluetooth and not device.bluetooth['is_connected']:
+                site.pending_action = {'action': "new_music",
+                                       'slot_dict': slot_dict,
+                                       'request_siteid': request_siteid}
+
+                self.mqtt_client.publish(f'squeezebox/request/oneSite/{site.site_id}/deviceConnect',
+                                         json.dumps({'addr': device.bluetooth['addr'],
+                                                     'squeeze_mac': device.mac,
+                                                     'soundcard': device.soundcard,
+                                                     'name': device.synonym}))
+                return None
         else:
-            del self.pending_actions[site_info['site_id']]
+            site.pending_action = None
 
-        err, player = self.get_player(site_info)
-        if err:
-            return err
+        player = device.player
+        if not player:
+            return "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden."
+
         try:
             query_params = list()
             artist = slot_dict.get('artist')
@@ -180,28 +242,32 @@ class LMSController:
         except requests.exceptions.ConnectionError:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
+    def get_player_no_error(self, slot_dict, request_siteid):
+        err, site = self.get_site(request_siteid, slot_dict)
+        if err:
+            return None
+        err, device = site.get_device(slot_dict)
+        if err:
+            return None
+        player = device.player
+        if not player:
+            return None
+        return player
+
     def pause_music(self, slot_dict, request_siteid):
-        err, site_info = self.get_site_info(slot_dict, request_siteid)
-        if err:
-            return
-        err, player = self.get_player(site_info)
-        if err:
-            return
-        try:
-            player.pause()
-        except requests.exceptions.ConnectionError:
-            pass
+        player = self.get_player_no_error(slot_dict, request_siteid)
+        if player:
+            try:
+                player.pause()
+            except requests.ConnectionError:
+                pass
         return
 
     def play_music(self, slot_dict, request_siteid):
-        err, site_info = self.get_site_info(slot_dict, request_siteid)
-        if err:
-            return
-        err, player = self.get_player(site_info)
-        if err:
-            return
-        try:
-            player.play(1.1)
-        except requests.exceptions.ConnectionError:
-            pass
+        player = self.get_player_no_error(slot_dict, request_siteid)
+        if player:
+            try:
+                player.play(1.1)
+            except requests.ConnectionError:
+                pass
         return

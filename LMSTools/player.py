@@ -6,7 +6,6 @@
 
 from .tags import LMSTags
 from .utils import LMSUtils
-import requests
 
 
 DETAILED_TAGS = [LMSTags.ARTIST,

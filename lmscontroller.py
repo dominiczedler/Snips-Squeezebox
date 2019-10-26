@@ -67,29 +67,27 @@ class LMSController:
             return True, None
 
     def get_site_info(self, slot_dict, request_siteid):
-        site_info = {'room_name': None, 'site_id': None}
-        err = None
-        if 'room' in slot_dict:
-            if request_siteid in self.sites_info and \
-                    slot_dict['room'] == self.sites_info[request_siteid]['room_name'] \
-                    or slot_dict['room'] == "hier":
-                site_info['site_id'] = request_siteid
-            elif request_siteid in self.sites_info and \
-                    slot_dict['room'] != self.sites_info[request_siteid]['room_name']:
-                dict_rooms = {self.sites_info[siteid]['room_name']: siteid for siteid in self.sites_info}
-                site_info['site_id'] = dict_rooms[slot_dict['room']]
+        if slot_dict.get('room'):
+            if slot_dict.get('room') == "hier":
+                if request_siteid not in self.sites_info:
+                    return "Dieser Raum hier wurde noch nicht konfiguriert.", None
+                else:
+                    return None, self.sites_info[request_siteid]
+            elif slot_dict.get('room') == "alle":
+                # TODO: return all site_infos
+                return None, self.sites_info[request_siteid]
             else:
-                err = f"Der Raum {slot_dict['room']} wurde noch nicht konfiguriert."
+                dict_rooms = {self.sites_info[siteid]['room_name']: self.sites_info[siteid]
+                              for siteid in self.sites_info}
+                if slot_dict.get('room') not in dict_rooms:
+                    return f"Der Raum {slot_dict.get('room')} wurde noch nicht konfiguriert.", None
+                else:
+                    return None, dict_rooms[slot_dict.get('rooms')]
         else:
-            site_info['site_id'] = request_siteid
-
-        if site_info['site_id'] in self.sites_info and 'room_name' in self.sites_info[site_info['site_id']]:
-            site_info['room_name'] = self.sites_info[site_info['site_id']]['room_name']
-        elif 'room' in slot_dict:
-            err = f"Der Raum {slot_dict['room']} wurde noch nicht konfiguriert."
-        else:
-            err = "Es gab einen Fehler."
-        return err, site_info
+            if request_siteid not in self.sites_info:
+                return "Dieser Raum hier wurde noch nicht konfiguriert.", None
+            else:
+                return None, self.sites_info[request_siteid]
 
     def get_player(self, site_info):
         player = self.server.get_player_from_name(site_info['room_name'])

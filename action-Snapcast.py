@@ -95,7 +95,7 @@ def msg_music_new(client, userdata, msg):
     end_session(client, data['sessionId'], err)
 
 
-def msg_result_bluetooth_connect(client, userdata, msg):
+def msg_result_device_connect(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
 
     err, site = lmsctl.get_site(data['siteId'])
@@ -204,8 +204,8 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
     client.subscribe('squeezebox/answer/#')
 
-    client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_bluetooth_connect)
-    client.subscribe('bluetooth/answer/deviceConnect')
+    client.message_callback_add('squeezebox/answer/deviceConnect', msg_result_device_connect)
+    client.subscribe('squeezebox/answer/deviceConnect')
 
     client.message_callback_add('hermes/dialogueManager/sessionStarted', session_started_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)

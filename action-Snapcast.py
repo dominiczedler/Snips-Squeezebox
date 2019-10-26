@@ -91,11 +91,12 @@ def msg_music_new(client, userdata, msg):
 
 def msg_result_bluetooth_connect(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if data['site_id'] in lmsctl.pending_actions and data['result']:
-        pending_action = lmsctl.pending_actions[data['site_id']]['pending_action']
+    site_id = data['siteId']
+    if site_id in lmsctl.pending_actions and data['result']:
+        pending_action = lmsctl.pending_actions[site_id]['pending_action']
         if pending_action == "new_music":
-            slot_dict = lmsctl.pending_actions[data['site_id']]['slot_dict']
-            request_siteid = lmsctl.pending_actions[data['site_id']]['request_siteid']
+            slot_dict = lmsctl.pending_actions[site_id]['slot_dict']
+            request_siteid = lmsctl.pending_actions[site_id]['request_siteid']
             err = lmsctl.new_music(slot_dict, request_siteid)
             if err:
                 notify(mqtt_client, err, request_siteid)

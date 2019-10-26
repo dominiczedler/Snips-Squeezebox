@@ -57,8 +57,7 @@ class LMSServer(object):
         Return a list of currently connected Squeezeplayers.
         """
         players = []
-        player_count = self.get_player_count()
-        print(player_count)
+        player_count = int(self.get_player_count())
         for i in range(player_count):
             player = LMSPlayer.from_index(i, self)
             players.append(player)

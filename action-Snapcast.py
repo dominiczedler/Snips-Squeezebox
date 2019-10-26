@@ -119,17 +119,25 @@ def msg_result_bluetooth_connect(client, userdata, msg):
 def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     err, site = lmsctl.get_site(data['siteId'])
-    if not err and site.auto_pause:
-        site.auto_pause_status = True
-        lmsctl.pause_music(get_slots(data), data['siteId'])
+    if err or not site.auto_pause:
+        return
+    for device_mac in site.devices_dict:
+        d = site.devices_dict[device_mac]
+        if d.player and d.player.mode == "play":
+            d.auto_pause = True
+            d.player.pause()
 
 
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     err, site = lmsctl.get_site(data['siteId'])
-    if not err and site.auto_pause_status:
-        site.auto_pause_status = False
-        lmsctl.play_music(get_slots(data), data['siteId'])
+    if err or not site.auto_pause_status:
+        return
+    for device_mac in site.devices_dict:
+        d = site.devices_dict[device_mac]
+        if d.player and d.player.mode == "pause" and d.auto_pause:
+            d.auto_pause = False
+            d.player.play(1.1)
 
 
 def msg_music_pause(client, userdata, msg):

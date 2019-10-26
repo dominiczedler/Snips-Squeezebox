@@ -13,6 +13,7 @@ class Device:
         self.mac = device_dict['squeezelite_mac']
         self.soundcard = device_dict['soundcard']
         self.player = None
+        self.auto_pause = False
 
 
 class Site:
@@ -21,7 +22,6 @@ class Site:
         self.site_id = None
         self.area = None
         self.auto_pause = None
-        self.auto_pause_status = False
         self.default_device_name = None
         self.devices_dict = dict()
         self.pending_action = dict()
@@ -50,17 +50,22 @@ class Site:
             except requests.ConnectionError:
                 device.player = None
 
-    def get_device(self, slot_dict, default_device):
-        if 'device' in slot_dict:
-            found = [self.devices_dict[mac] for mac in self.devices_dict
-                     if slot_dict['device'] in self.devices_dict[mac].names_list]
+    def get_devices(self, slot_dict, default_device):
+        if slot_dict.get('device'):
+            if slot_dict.get('device') == "alle":
+                found = [self.devices_dict[mac] for mac in self.devices_dict]
+                if not found:
+                    return f"Im Raum {self.room_name} gibt es keine Geräte.", None
+            else:
+                found = [self.devices_dict[mac] for mac in self.devices_dict
+                         if slot_dict['device'] in self.devices_dict[mac].names_list]
         else:
             found = [self.devices_dict[mac] for mac in self.devices_dict
                      if default_device in self.devices_dict[mac].names_list]
         if not found:
             return f"Dieses Gerät gibt es im Raum {self.room_name} nicht.", None
         else:
-            return None, found[0]
+            return None, found
 
 
 class LMSController:
@@ -188,6 +193,8 @@ class LMSController:
         if err:
             return err
 
+        device = device[0]  # TODO: Start same music on multiple devices
+
         if not site.pending_action:
             # Connect bluetooth device if necessary
             print(device.bluetooth)
@@ -243,32 +250,28 @@ class LMSController:
         except requests.exceptions.ConnectionError:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
-    def get_player_no_error(self, slot_dict, request_siteid):
+    def pause_music(self, slot_dict, request_siteid):
         err, site = self.get_site(request_siteid, slot_dict)
         if err:
-            return None
-        err, device = site.get_device(slot_dict, site.default_device_name)
+            return
+        err, devices = site.get_devices(slot_dict, site.default_device_name)
         if err:
-            return None
-        player = device.player
-        if not player:
-            return None
-        return player
-
-    def pause_music(self, slot_dict, request_siteid):
-        player = self.get_player_no_error(slot_dict, request_siteid)
-        if player:
-            try:
-                player.pause()
-            except requests.ConnectionError:
-                pass
+            return
+        for d in devices:
+            if d.player and d.player.mode == "play":
+                d.auto_pause = False
+                d.player.pause()
         return
 
     def play_music(self, slot_dict, request_siteid):
-        player = self.get_player_no_error(slot_dict, request_siteid)
-        if player:
-            try:
-                player.play(1.1)
-            except requests.ConnectionError:
-                pass
+        err, site = self.get_site(request_siteid, slot_dict)
+        if err:
+            return
+        err, devices = site.get_devices(slot_dict, site.default_device_name)
+        if err:
+            return
+        for d in devices:
+            if d.player and d.player.mode == "pause":
+                d.auto_pause = False
+                d.player.play(1.1)
         return

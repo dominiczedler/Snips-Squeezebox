@@ -50,13 +50,13 @@ class Site:
             except requests.ConnectionError:
                 device.player = None
 
-    def get_device(self, slot_dict):
+    def get_device(self, slot_dict, default_device):
         if 'device' in slot_dict:
             found = [self.devices_dict[mac] for mac in self.devices_dict
                      if slot_dict['device'] in self.devices_dict[mac].names_list]
         else:
             found = [self.devices_dict[mac] for mac in self.devices_dict
-                     if self.devices_dict[mac].default_device_name in self.devices_dict[mac].names_list]
+                     if default_device in self.devices_dict[mac].names_list]
         if not found:
             return f"Dieses Gerät gibt es im Raum {self.room_name} nicht.", None
         else:
@@ -184,7 +184,7 @@ class LMSController:
         if err:
             return err
 
-        err, device = site.get_device(slot_dict)
+        err, device = site.get_device(slot_dict, site.default_device_name)
         if err:
             return err
 
@@ -246,7 +246,7 @@ class LMSController:
         err, site = self.get_site(request_siteid, slot_dict)
         if err:
             return None
-        err, device = site.get_device(slot_dict)
+        err, device = site.get_device(slot_dict, site.default_device_name)
         if err:
             return None
         player = device.player

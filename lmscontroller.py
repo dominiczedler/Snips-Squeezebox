@@ -201,7 +201,7 @@ class LMSController:
         if err:
             return
         try:
-            player.play(0.5)
+            player.play(1.1)
         except requests.exceptions.ConnectionError:
             pass
         return

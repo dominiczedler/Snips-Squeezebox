@@ -131,10 +131,10 @@ def msg_music_pause(client, userdata, msg):
 
 def end_session(client, session_id, text=None):
     if text:
-        data = {'text': text, 'sessionId': session_id}
+        payload = {'text': text, 'sessionId': session_id}
     else:
-        data = {'sessionId': session_id}
-    client.publish('hermes/dialogueManager/endSession', json.dumps(data))
+        payload = {'sessionId': session_id}
+    client.publish('hermes/dialogueManager/endSession', json.dumps(payload))
 
 
 def notify(client, text, site_id):

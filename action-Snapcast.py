@@ -129,6 +129,7 @@ def msg_music_pause(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     lmsctl.current_action[data['siteid']] = "pause"
     lmsctl.pause_music(get_slots(data), data['siteId'])
+    end_session(client, data['sessionId'])
 
 
 def end_session(client, session_id, text=None):

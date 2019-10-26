@@ -121,7 +121,7 @@ def session_started_received(client, userdata, msg):
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     if data['siteId'] in lmsctl.current_action and lmsctl.current_action[data['siteId']] == "auto_pause":
-        lmsctl.current_action[data['siteid']] = "play"
+        lmsctl.current_action[data['siteId']] = "play"
         lmsctl.play_music(get_slots(data), data['siteId'])
 
 

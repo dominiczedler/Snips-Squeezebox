@@ -163,10 +163,8 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
+    client.message_callback_add('squeezebox/answer/deviceConnect', msg_result_bluetooth_connect)
     client.subscribe('squeezebox/answer/#')
-
-    client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_bluetooth_connect)
-    client.subscribe('bluetooth/answer/deviceConnect')
 
     client.message_callback_add('hermes/asr/startListening', start_listening_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)

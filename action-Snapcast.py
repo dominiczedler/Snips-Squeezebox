@@ -163,11 +163,11 @@ def dialogue(client, session_id, text, intent_filter, custom_data=None):
 def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxInjectNames'), msg_inject_names)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicNew'), msg_music_new)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicStop'), msg_music_pause)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPause'), msg_music_pause)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicStop'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPause'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)

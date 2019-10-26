@@ -97,7 +97,7 @@ def msg_result_bluetooth_connect(client, userdata, msg):
         if pending_action == "new_music":
             slot_dict = lmsctl.pending_actions[site_id]['slot_dict']
             request_siteid = lmsctl.pending_actions[site_id]['request_siteid']
-            err = lmsctl.new_music(slot_dict, request_siteid)
+            err = lmsctl.new_music(slot_dict, request_siteid, pending_action)
             if err:
                 notify(mqtt_client, err, request_siteid)
 

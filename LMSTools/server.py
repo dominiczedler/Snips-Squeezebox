@@ -58,6 +58,7 @@ class LMSServer(object):
         """
         players = []
         player_count = self.get_player_count()
+        print(player_count)
         for i in range(player_count):
             player = LMSPlayer.from_index(i, self)
             players.append(player)

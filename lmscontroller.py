@@ -190,6 +190,7 @@ class LMSController:
 
         if not site.pending_action:
             # Connect bluetooth device if necessary
+            print(device.bluetooth)
             if device.bluetooth and not device.bluetooth['is_connected']:
                 site.pending_action = {'action': "new_music",
                                        'slot_dict': slot_dict,

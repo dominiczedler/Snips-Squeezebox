@@ -101,6 +101,25 @@ def msg_result_bluetooth_connect(client, userdata, msg):
                 notify(mqtt_client, err, request_siteid)
 
 
+def start_listening_received(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    if lmsctl.sites_info[data['siteId']]['auto_pause']:
+        lmsctl.auto_paused[data['siteId']] = True
+        lmsctl.pause_music(get_slots(data), data['siteId'])
+
+
+def session_ended_received(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    if lmsctl.sites_info[data['siteId']]['auto_pause'] and data['siteId'] in lmsctl.auto_paused:
+        del lmsctl.auto_paused[data['siteId']]
+        lmsctl.play_music(get_slots(data), data['siteId'])
+
+
+def msg_music_pause(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    lmsctl.pause_music(get_slots(data), data['siteId'])
+
+
 def end_session(client, session_id, text=None):
     if text:
         data = {'text': text, 'sessionId': session_id}
@@ -135,9 +154,11 @@ def dialogue(client, session_id, text, intent_filter, custom_data=None):
 def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxInjectNames'), msg_inject_names)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicNew'), msg_music_new)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicStop'), msg_music_pause)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicStop'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
@@ -145,6 +166,9 @@ def on_connect(client, userdata, flags, rc):
 
     client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_bluetooth_connect)
     client.subscribe('bluetooth/answer/deviceConnect')
+
+    client.subscribe('hermes/asr/startListening', start_listening_received)
+    client.subscribe('hermes/dialogueManager/sessionEnded', session_ended_received)
 
 
 if __name__ == "__main__":
@@ -166,11 +190,12 @@ if __name__ == "__main__":
         lms_host = "localhost"
         lms_port = 9000
 
-    lmsctl = lmscontroller.LMSController(lms_host, lms_port)
-
     squeezebox = Squeezebox()
 
     mqtt_client = mqtt.Client()
+
+    lmsctl = lmscontroller.LMSController(mqtt_client, lms_host, lms_port)
+
     mqtt_client.on_connect = on_connect
     mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
     mqtt_client.connect(MQTT_BROKER_ADDRESS.split(":")[0], int(MQTT_BROKER_ADDRESS.split(":")[1]))

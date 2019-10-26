@@ -100,9 +100,9 @@ class LMSPlayer(LMSUtils):
         """
         return self.request(command).get(key)
 
-    def play(self):
+    def play(self, fade_in=0):
         """Start playing the current item"""
-        self.request("play")
+        self.request(f"play {fade_in}")
 
     def stop(self):
         """Stop the player"""

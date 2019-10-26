@@ -1,12 +1,16 @@
 import LMSTools
 import requests
+import json
+import re
 
 
 class LMSController:
-    def __init__(self, lms_host, lms_port):
+    def __init__(self, mqtt_client, lms_host, lms_port):
+        self.mqtt_client = mqtt_client
         self.server = LMSTools.LMSServer(lms_host, lms_port)
         self.sites_info = dict()
         self.pending_actions = dict()
+        self.auto_paused = dict()
 
     def get_music_names(self):
         try:
@@ -101,9 +105,22 @@ class LMSController:
             return err
 
         if not pending_action:
+            if 'device' in slot_dict:
+                found = [d['bluetooth']['addr'] for d in site_info['devices']
+                         if slot_dict['device'] in d['names_list']]
+                if not found:
+                    return "Dieses Gerät gibt es nicht."
+                else:
+                    addr = found[0]
+            else:
+                found = [d['bluetooth']['addr'] for d in site_info['devices']
+                         if d['name'] == site_info['default_device']]
+                addr = found[0]
             self.pending_actions[site_info['site_id']] = {'pending_action': "new_music",
                                                           'slot_dict': slot_dict,
                                                           'request_siteid': request_siteid}
+            self.mqtt_client.publish(f'bluetooth/request/oneSite/{site_info["site_id"]}/deviceConnect',
+                                     json.dumps({'addr': addr}))
             return None
         else:
             del self.pending_actions[site_info['site_id']]
@@ -117,20 +134,56 @@ class LMSController:
             album = slot_dict.get('album')
             title = slot_dict.get('title')
             genre = slot_dict.get('genre')
-            if artist:
-                query_params.append(f"contributor.namesearch={'+'.join(artist.split(' '))}")
-            if album:
-                query_params.append(f"album.titlesearch={'+'.join(album.split(' '))}")
-            if title:
-                query_params.append(f"track.titlesearch={'+'.join(title.split(' '))}")
-            if genre:
-                query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
-            if not album and not title:
-                player.request(f"playlist shuffle 1")
-            else:
+            if album or title:
+                if artist:
+                    query_params.append(f"contributor.namesearch={'+'.join(artist.split(' '))}")
+                if album:
+                    query_params.append(f"album.titlesearch={'+'.join(album.split(' '))}")
+                if title:
+                    query_params.append(f"track.titlesearch={'+'.join(title.split(' '))}")
+                if genre:
+                    query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
                 player.request(f"playlist shuffle 0")
-            player.request(f"playlist loadtracks {'&'.join(query_params)}")
+                player.request(f"playlist loadtracks {'&'.join(query_params)}")
+            elif artist:
+                query_params = [f"contributor.namesearch={'+'.join(artist.split(' '))}"]
+                player.request("playlist shuffle 1")
+                player.request(f"playlist loadtracks {'&'.join(query_params)}")
+            elif genre:
+                player.request("randomplaygenreselectall 0")
+                player.request(f"randomplaychoosegenre {genre} 1")
+                player.request("randomplay tracks")
+            else:
+                player.request("randomplaygenreselectall 1")
+                player.request("randomplay tracks")
+
             return None
 
         except requests.exceptions.ConnectionError:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
+
+    def pause_music(self, slot_dict, request_siteid):
+        err, site_info = self.get_site_info(slot_dict, request_siteid)
+        if err:
+            return
+        err, player = self.get_player(site_info)
+        if err:
+            return
+        try:
+            player.pause()
+        except requests.exceptions.ConnectionError:
+            pass
+        return
+
+    def play_music(self, slot_dict, request_siteid):
+        err, site_info = self.get_site_info(slot_dict, request_siteid)
+        if err:
+            return
+        err, player = self.get_player(site_info)
+        if err:
+            return
+        try:
+            player.play(0.5)
+        except requests.exceptions.ConnectionError:
+            pass
+        return

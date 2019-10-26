@@ -131,7 +131,7 @@ def session_started_received(client, userdata, msg):
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     err, site = lmsctl.get_site(data['siteId'])
-    if err or not site.auto_pause_status:
+    if err:
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]

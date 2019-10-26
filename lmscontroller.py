@@ -189,11 +189,11 @@ class LMSController:
         if err:
             return err
 
-        err, device = site.get_device(slot_dict, site.default_device_name)
+        err, devices = site.get_devices(slot_dict, site.default_device_name)
         if err:
             return err
 
-        device = device[0]  # TODO: Start same music on multiple devices
+        device = devices[0]  # TODO: Start same music on multiple devices
 
         if not site.pending_action:
             # Connect bluetooth device if necessary

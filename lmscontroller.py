@@ -105,6 +105,7 @@ class LMSController:
             return err
 
         if not pending_action:
+            print(site_info)
             if 'device' in slot_dict:
                 found = [d['bluetooth']['addr'] for d in site_info['devices']
                          if slot_dict['device'] in d['names_list']]

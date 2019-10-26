@@ -110,7 +110,7 @@ def msg_result_bluetooth_connect(client, userdata, msg):
         notify(mqtt_client, "Das Gerät konnte nicht verbunden werden.", request_siteid)
 
 
-def start_listening_received(client, userdata, msg):
+def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     if lmsctl.sites_info[data['siteId']]['auto_pause']:
         lmsctl.auto_paused[data['siteId']] = True
@@ -174,9 +174,9 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('squeezebox/answer/deviceConnect', msg_result_bluetooth_connect)
     client.subscribe('squeezebox/answer/#')
 
-    client.message_callback_add('hermes/asr/startListening', start_listening_received)
+    client.message_callback_add('hermes/dialogueManager/sessionStarted', session_started_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)
-    client.subscribe('hermes/asr/startListening')
+    client.subscribe('hermes/dialogueManager/sessionStarted')
     client.subscribe('hermes/dialogueManager/sessionEnded')
 
 

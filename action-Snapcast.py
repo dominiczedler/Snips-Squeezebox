@@ -91,7 +91,7 @@ def msg_music_new(client, userdata, msg):
     slot_dict = get_slots(data)
     err = lmsctl.new_music(slot_dict, data['siteId'])
     if not err:
-        lmsctl.current_action[data['siteid']] = "new_music"
+        lmsctl.current_action[data['siteId']] = "new_music"
     end_session(client, data['sessionId'], err)
 
 

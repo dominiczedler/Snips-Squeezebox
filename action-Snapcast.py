@@ -120,7 +120,7 @@ def msg_result_device_connect(client, userdata, msg):
                 notify(mqtt_client, err, request_siteid)
 
     elif site.pending_action and not data['result']:
-        site.pending_action = None
+        site.pending_action = dict()
 
 
 def msg_result_device_disconnect(client, userdata, msg):
@@ -161,7 +161,7 @@ def msg_result_service_start(client, userdata, msg):
 
     elif site.pending_action and not data['result']:
         request_siteid = site.pending_action['request_siteid']
-        site.pending_action = None
+        site.pending_action = dict()
         notify(mqtt_client, "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden.", request_siteid)
 
 

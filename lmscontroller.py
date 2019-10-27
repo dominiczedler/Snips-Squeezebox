@@ -214,11 +214,13 @@ class LMSController:
         player = device.player
         print(player)
 
-        # Start squeezelite service if necessary
         if not player:
             found = [player for player in self.server.get_players() if player.ref == device.mac]
             if found:
                 player = found[0]
+
+        # Start squeezelite service if necessary
+        if not player:
             if not site.pending_action.get('retries_service_start'):
                 site.pending_action = {
                     'action': "new_music",

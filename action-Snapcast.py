@@ -136,7 +136,6 @@ def msg_result_device_disconnect(client, userdata, msg):
 
     device = found[0]
     device.bluetooth['is_connected'] = False
-    device.player = None
     payload = {  # information for squeezelite service
         'squeeze_mac': device.mac
     }

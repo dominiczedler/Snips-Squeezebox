@@ -215,13 +215,11 @@ class LMSController:
             )
             return None
 
-        if not device.player:
-            found = [player for player in self.server.get_players() if player.ref == device.mac]
-            if found:
-                device.player = found[0]
-
-        player = device.player
-        print(player)
+        found = [player for player in self.server.get_players() if player.ref == device.mac]
+        if found:
+            device.player = found[0]
+        else:
+            device.player = None
 
         # Start squeezelite service if necessary
         if not device.player:
@@ -254,6 +252,9 @@ class LMSController:
 
         if site.pending_action:
             site.pending_action = dict()
+
+        player = device.player
+        print(player)
 
         try:
             query_params = list()

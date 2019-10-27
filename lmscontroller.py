@@ -222,7 +222,7 @@ class LMSController:
             device.player = None
 
         tries = site.pending_action.get('tried_service_start')
-        if tries and tries > 3:
+        if tries and tries > 10:
             return "Das Abspielprogramm wurde nicht richtig gestartet."
 
         if not tries or not device.player:

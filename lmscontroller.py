@@ -196,8 +196,9 @@ class LMSController:
         device = devices[0]  # TODO: Start same music on multiple devices
 
         # Connect bluetooth device if necessary
-        if device.bluetooth and not device.bluetooth['is_connected'] \
-                and not site.pending_action.get('tried_device_connect'):
+        if device.bluetooth and not device.bluetooth['is_connected']:
+            if site.pending_action and site.pending_action.get('tried_device_connect'):
+                return
             site.pending_action = {
                 'action': "new_music",
                 'slot_dict': slot_dict,

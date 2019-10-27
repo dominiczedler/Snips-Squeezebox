@@ -215,7 +215,7 @@ class LMSController:
             return None
 
         player = device.player
-
+        print(player)
         # Start squeezelite service if necessary
         if not player:
             site.pending_action = {

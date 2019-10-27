@@ -215,30 +215,14 @@ class LMSController:
             )
             return None
 
-        found = [player for player in self.server.get_players() if player.ref == device.mac]
-        if found:
-            device.player = found[0]
-        else:
-            device.player = None
-
-        # Start squeezelite service if necessary
-        if not device.player:
-            if not site.pending_action.get('retries_service_start'):
-                site.pending_action = {
-                    'action': "new_music",
-                    'slot_dict': slot_dict,
-                    'request_siteid': request_siteid,
-                    'retries_service_start': 1
-                }
-            else:
-                if site.pending_action.get('retries_service_start') > 3:
-                    return "Das Abspielprogramm wurde nicht richtig gestartet."
-                site.pending_action = {
-                    'action': "new_music",
-                    'slot_dict': slot_dict,
-                    'request_siteid': request_siteid,
-                    'retries_service_start': site.pending_action.get('retries_service_start') + 1
-                }
+        if not site.pending_action or site.pending_action and not site.pending_action.get('tried_service_start'):
+            # Start squeezelite service
+            site.pending_action = {
+                'action': "new_music",
+                'slot_dict': slot_dict,
+                'request_siteid': request_siteid,
+                'tried_service_start': True
+            }
             payload = {  # information for squeezelite service
                 'squeeze_mac': device.mac,
                 'soundcard': device.soundcard,
@@ -253,8 +237,13 @@ class LMSController:
         if site.pending_action:
             site.pending_action = dict()
 
+        found = [player for player in self.server.get_players() if player.ref == device.mac]
+        if found:
+            device.player = found[0]
+        else:
+            device.player = None
+
         player = device.player
-        print(player)
 
         try:
             query_params = list()

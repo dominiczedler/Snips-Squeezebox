@@ -152,6 +152,7 @@ def msg_result_service_start(client, userdata, msg):
         return err
 
     if site.pending_action and data['result']:
+
         if site.pending_action['action'] == "new_music":
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']

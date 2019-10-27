@@ -32,6 +32,7 @@ class Site:
         self.area = data['area']
         self.auto_pause = data['auto_pause']
         self.default_device_name = data['default_device']
+        connected_players = server.get_players()
 
         for device_dict in data['devices']:
             if device_dict['squeezelite_mac'] not in self.devices_dict:
@@ -45,10 +46,9 @@ class Site:
             device.bluetooth = device_dict['bluetooth']
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
-            try:
-                device.player = LMSTools.LMSPlayer(device.mac, server)
-            except requests.ConnectionError:
-                device.player = None
+            found = [player for player in connected_players if player.ref == device.mac]
+            if found:
+                device.player = found[0]
 
     def get_devices(self, slot_dict, default_device):
         if slot_dict.get('device'):
@@ -195,15 +195,14 @@ class LMSController:
 
         device = devices[0]  # TODO: Start same music on multiple devices
 
-        if site.pending_action:
-            site.pending_action = None
-
         # Connect bluetooth device if necessary
-        if device.bluetooth and not device.bluetooth['is_connected']:
+        if device.bluetooth and not device.bluetooth['is_connected'] \
+                and not site.pending_action.get('tried_device_connect'):
             site.pending_action = {
                 'action': "new_music",
                 'slot_dict': slot_dict,
-                'request_siteid': request_siteid
+                'request_siteid': request_siteid,
+                'tried_device_connect': True
             }
             payload = {  # Information for bluetooth connection
                 'addr': device.bluetooth['addr'],
@@ -217,19 +216,25 @@ class LMSController:
 
         player = device.player
         print(player)
-        if not player:
-            try:
-                player = LMSTools.LMSPlayer(device.mac, self.server)
-            except requests.ConnectionError:
-                player = None
 
         # Start squeezelite service if necessary
         if not player:
-            site.pending_action = {
-                'action': "new_music",
-                'slot_dict': slot_dict,
-                'request_siteid': request_siteid
-            }
+            if not site.pending_action.get('retries_service_start'):
+                site.pending_action = {
+                    'action': "new_music",
+                    'slot_dict': slot_dict,
+                    'request_siteid': request_siteid,
+                    'retries_service_start': 1
+                }
+            else:
+                if site.pending_action.get('retries_service_start') > 3:
+                    return "Das Abspielprogramm wurde nicht richtig gestartet."
+                site.pending_action = {
+                    'action': "new_music",
+                    'slot_dict': slot_dict,
+                    'request_siteid': request_siteid,
+                    'retries_service_start': site.pending_action.get('retries_service_start') + 1
+                }
             payload = {  # information for squeezelite service
                 'squeeze_mac': device.mac,
                 'soundcard': device.soundcard,
@@ -240,6 +245,9 @@ class LMSController:
                 json.dumps(payload)
             )
             return None
+
+        if site.pending_action:
+            site.pending_action = dict()
 
         try:
             query_params = list()

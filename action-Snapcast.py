@@ -102,7 +102,14 @@ def msg_result_device_connect(client, userdata, msg):
     if err:
         return err
 
+    found = [site.devices_dict[mac] for mac in site.devices_dict
+             if site.devices_dict[mac].bluetooth and
+             data['addr'] == site.devices_dict[mac].bluetooth['addr']]
+    if found:
+        found[0].bluetooth['is_connected'] = True
+
     if site.pending_action and data['result']:
+
         if site.pending_action['action'] == "new_music":
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']
@@ -130,6 +137,7 @@ def msg_result_device_disconnect(client, userdata, msg):
         return
 
     device = found[0]
+    device.bluetooth['is_connected'] = True
     payload = {  # information for squeezelite service
         'squeeze_mac': device.mac
     }

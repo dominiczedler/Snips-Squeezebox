@@ -116,6 +116,50 @@ def msg_result_device_connect(client, userdata, msg):
         notify(mqtt_client, "Das Gerät konnte nicht verbunden werden.", request_siteid)
 
 
+def msg_result_device_disconnect(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+
+    err, site = lmsctl.get_site(data['siteId'])
+    if err:
+        return
+
+    found = [site.devices_dict[mac]for mac in site.devices_dict
+             if site.devices_dict[mac].bluetooth and
+             data['addr'] == site.devices_dict[mac].bluetooth['addr']]
+    if not found:
+        return
+
+    device = found[0]
+    payload = {  # information for squeezelite service
+        'squeeze_mac': device.mac
+    }
+    client.publish(
+        f'squeezebox/request/oneSite/{site.site_id}/serviceStop',
+        json.dumps(payload)
+    )
+
+
+def msg_result_service_start(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+
+    err, site = lmsctl.get_site(data['siteId'])
+    if err:
+        return err
+
+    if site.pending_action and data['result']:
+        if site.pending_action['action'] == "new_music":
+            slot_dict = site.pending_action['slot_dict']
+            request_siteid = site.pending_action['request_siteid']
+            err = lmsctl.new_music(slot_dict, request_siteid)
+            if err:
+                notify(mqtt_client, err, request_siteid)
+
+    elif site.pending_action and not data['result']:
+        request_siteid = site.pending_action['request_siteid']
+        site.pending_action = None
+        notify(mqtt_client, "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden.", request_siteid)
+
+
 def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     err, site = lmsctl.get_site(data['siteId'])
@@ -204,10 +248,13 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
+    client.message_callback_add('squeezebox/answer/serviceStart', msg_result_service_start)
     client.subscribe('squeezebox/answer/#')
 
-    client.message_callback_add('squeezebox/answer/deviceConnect', msg_result_device_connect)
-    client.subscribe('squeezebox/answer/deviceConnect')
+    client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_device_connect)
+    client.message_callback_add('bluetooth/answer/deviceDisconnect', msg_result_device_disconnect)
+    client.subscribe('bluetooth/answer/deviceConnect')
+    client.subscribe('bluetooth/answer/deviceDisconnect')
 
     client.message_callback_add('hermes/dialogueManager/sessionStarted', session_started_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)

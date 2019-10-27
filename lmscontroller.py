@@ -195,34 +195,44 @@ class LMSController:
 
         device = devices[0]  # TODO: Start same music on multiple devices
 
-        if not site.pending_action:
-            # Connect bluetooth device if necessary
-            print(device.bluetooth)
-            if device.bluetooth and not device.bluetooth['is_connected']:
-                site.pending_action = {'action': "new_music",
-                                       'slot_dict': slot_dict,
-                                       'request_siteid': request_siteid}
-
-                self.mqtt_client.publish(f'squeezebox/request/oneSite/{site.site_id}/deviceConnect',
-                                         json.dumps({'addr': device.bluetooth['addr'],
-                                                     'squeeze_mac': device.mac,
-                                                     'soundcard': device.soundcard,
-                                                     'name': device.synonym}))
-                return None
-        else:
+        if site.pending_action:
             site.pending_action = None
 
+        # Connect bluetooth device if necessary
+        if device.bluetooth and not device.bluetooth['is_connected']:
+            site.pending_action = {
+                'action': "new_music",
+                'slot_dict': slot_dict,
+                'request_siteid': request_siteid
+            }
+            payload = {  # Information for bluetooth connection
+                'addr': device.bluetooth['addr']
+            }
+            self.mqtt_client.publish(  # request bluetooth connection
+                f'squeezebox/request/oneSite/{site.site_id}/deviceConnect',
+                json.dumps(payload)
+            )
+            return None
+
         player = device.player
+
+        # Start squeezelite service if necessary
         if not player:
-            for i in range(3):
-                try:
-                    player = LMSTools.LMSPlayer(device.mac, self.server)
-                    if player:
-                        break
-                except requests.ConnectionError:
-                    player = None
-        if not player:
-            return "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden."
+            site.pending_action = {
+                'action': "new_music",
+                'slot_dict': slot_dict,
+                'request_siteid': request_siteid
+            }
+            payload = {  # information for squeezelite service
+                'squeeze_mac': device.mac,
+                'soundcard': device.soundcard,
+                'name': device.synonym  # TODO: Don't use synonym if not available
+            }
+            self.mqtt_client.publish(
+                f'squeezebox/request/oneSite/{site.site_id}/serviceStart',
+                json.dumps(payload)
+            )
+            return None
 
         try:
             query_params = list()

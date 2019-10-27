@@ -102,6 +102,8 @@ def msg_result_device_connect(client, userdata, msg):
     if err:
         return err
 
+    client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
+
     if site.pending_action and data['result']:
         found = [site.devices_dict[mac] for mac in site.devices_dict
                  if site.devices_dict[mac].bluetooth and
@@ -128,6 +130,7 @@ def msg_result_device_disconnect(client, userdata, msg):
     if err:
         return
 
+    client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/serviceStop')
 
     found = [site.devices_dict[mac]for mac in site.devices_dict

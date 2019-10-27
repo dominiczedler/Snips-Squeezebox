@@ -255,8 +255,8 @@ def on_connect(client, userdata, flags, rc):
 
     client.message_callback_add('bluetooth/answer/deviceConnect', msg_result_device_connect)
     client.message_callback_add('bluetooth/answer/deviceDisconnect', msg_result_device_disconnect)
-    client.subscribe('bluetooth/answer/deviceConnect')
-    client.subscribe('bluetooth/answer/deviceDisconnect')
+    client.message_callback_add('bluetooth/answer/deviceRemove', msg_result_device_disconnect)
+    client.subscribe('bluetooth/answer/#')
 
     client.message_callback_add('hermes/dialogueManager/sessionStarted', session_started_received)
     client.message_callback_add('hermes/dialogueManager/sessionEnded', session_ended_received)

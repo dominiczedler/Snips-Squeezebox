@@ -206,16 +206,23 @@ class LMSController:
                 'request_siteid': request_siteid
             }
             payload = {  # Information for bluetooth connection
-                'addr': device.bluetooth['addr']
+                'addr': device.bluetooth['addr'],
+                'tries': 3
             }
             self.mqtt_client.publish(  # request bluetooth connection
-                f'squeezebox/request/oneSite/{site.site_id}/deviceConnect',
+                f'bluetooth/request/oneSite/{site.site_id}/deviceConnect',
                 json.dumps(payload)
             )
             return None
 
         player = device.player
         print(player)
+        if not player:
+            try:
+                player = LMSTools.LMSPlayer(device.mac, self.server)
+            except requests.ConnectionError:
+                player = None
+
         # Start squeezelite service if necessary
         if not player:
             site.pending_action = {

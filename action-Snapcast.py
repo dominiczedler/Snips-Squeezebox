@@ -117,9 +117,7 @@ def msg_result_device_connect(client, userdata, msg):
                 notify(mqtt_client, err, request_siteid)
 
     elif site.pending_action and not data['result']:
-        request_siteid = site.pending_action['request_siteid']
         site.pending_action = None
-        notify(mqtt_client, "Das Gerät konnte nicht verbunden werden.", request_siteid)
 
 
 def msg_result_device_disconnect(client, userdata, msg):

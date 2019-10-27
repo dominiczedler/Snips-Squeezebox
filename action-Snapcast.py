@@ -194,11 +194,13 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicNew'), msg_music_new)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPause'), msg_music_pause)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPlay'), msg_music_play)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxVolumeChange'), msg_volume_change)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPause'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPlay'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxVolumeChange'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)

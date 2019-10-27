@@ -214,6 +214,14 @@ class LMSController:
 
         player = device.player
         if not player:
+            for i in range(3):
+                try:
+                    player = LMSTools.LMSPlayer(device.mac, self.server)
+                    if player:
+                        break
+                except requests.ConnectionError:
+                    player = None
+        if not player:
             return "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden."
 
         try:
@@ -258,7 +266,7 @@ class LMSController:
         if err:
             return
         for d in devices:
-            if d.player and d.player.mode == "play":
+            if d.player:
                 d.auto_pause = False
                 d.player.pause()
         return
@@ -271,7 +279,38 @@ class LMSController:
         if err:
             return
         for d in devices:
-            if d.player and d.player.mode == "pause":
+            if d.player and d.player.mode in ["pause", "stop"]:
                 d.auto_pause = False
                 d.player.play(1.1)
+        return
+
+    def change_volume(self, slot_dict, request_siteid):
+        err, site = self.get_site(request_siteid, slot_dict)
+        if err:
+            return
+        err, devices = site.get_devices(slot_dict, site.default_device_name)
+        if err:
+            return
+        for d in devices:
+            if d.player:
+                if slot_dict.get('volume_absolute'):
+                    d.player.volume = slot_dict.get('volume_absolute')
+                elif slot_dict.get('direction') == "lower":
+                    if slot_dict.get('volume_change'):
+                        d.player.volume_down(slot_dict.get('volume_change'))
+                    else:
+                        d.player.volume_down(10)
+                elif slot_dict.get('direction') == "higher":
+                    if slot_dict.get('volume_change'):
+                        d.player.volume_up(slot_dict.get('volume_change'))
+                    else:
+                        d.player.volume_up(10)
+                elif slot_dict.get('direction') == "low":
+                    d.player.volume = 30
+                elif slot_dict.get('direction') == "high":
+                    d.player.volume = 70
+                elif slot_dict.get('direction') == "lowest":
+                    d.player.volume = 10
+                elif slot_dict.get('direction') == "highest":
+                    d.player.volume = 100
         return

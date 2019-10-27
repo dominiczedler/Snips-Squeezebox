@@ -32,7 +32,6 @@ class Site:
         self.area = data['area']
         self.auto_pause = data['auto_pause']
         self.default_device_name = data['default_device']
-        connected_players = server.get_players()
 
         for device_dict in data['devices']:
             if device_dict['squeezelite_mac'] not in self.devices_dict:
@@ -46,9 +45,6 @@ class Site:
             device.bluetooth = device_dict['bluetooth']
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
-            found = [player for player in connected_players if player.ref == device.mac]
-            if found:
-                device.player = found[0]
 
     def get_devices(self, slot_dict, default_device):
         if slot_dict.get('device'):
@@ -220,6 +216,9 @@ class LMSController:
 
         # Start squeezelite service if necessary
         if not player:
+            found = [player for player in self.server.get_players() if player.ref == device.mac]
+            if found:
+                player = found[0]
             if not site.pending_action.get('retries_service_start'):
                 site.pending_action = {
                     'action': "new_music",

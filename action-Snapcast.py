@@ -128,6 +128,8 @@ def msg_result_device_disconnect(client, userdata, msg):
     if err:
         return
 
+    client.publish(f'squeezebox/request/oneSite/{site.site_id}/serviceStop')
+
     found = [site.devices_dict[mac]for mac in site.devices_dict
              if site.devices_dict[mac].bluetooth and
              data['addr'] == site.devices_dict[mac].bluetooth['addr']]
@@ -136,13 +138,6 @@ def msg_result_device_disconnect(client, userdata, msg):
 
     device = found[0]
     device.bluetooth['is_connected'] = False
-    payload = {  # information for squeezelite service
-        'squeeze_mac': device.mac
-    }
-    client.publish(
-        f'squeezebox/request/oneSite/{site.site_id}/serviceStop',
-        json.dumps(payload)
-    )
 
 
 def msg_result_service_start(client, userdata, msg):

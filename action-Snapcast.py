@@ -110,6 +110,7 @@ def msg_result_device_connect(client, userdata, msg):
             found[0].bluetooth['is_connected'] = True
 
         if site.pending_action['action'] == "new_music":
+            print("next step")
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']
             err = lmsctl.new_music(slot_dict, request_siteid)

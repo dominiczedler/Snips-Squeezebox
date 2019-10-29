@@ -213,10 +213,10 @@ class LMSController:
             )
             return None
 
-        if site.pending_action.get('tried_service_start'):
-            return "Das Abspielprogramm wurde nicht richtig gestartet."
-
         if not device.player.connected:
+
+            if site.pending_action.get('tried_service_start'):
+                return "Das Abspielprogramm wurde nicht richtig gestartet."
 
             # Start squeezelite service
             site.pending_action = {

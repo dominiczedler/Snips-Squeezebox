@@ -144,7 +144,7 @@ class LMSController:
                 if slot_dict.get('room') not in dict_rooms:
                     return f"Der Raum {slot_dict.get('room')} wurde noch nicht konfiguriert.", None
                 else:
-                    return None, dict_rooms[slot_dict.get('rooms')]
+                    return None, dict_rooms[slot_dict.get('room')]
         else:
             if not self.sites_dict.get(request_siteid):
                 return "Dieser Raum hier wurde noch nicht konfiguriert.", None

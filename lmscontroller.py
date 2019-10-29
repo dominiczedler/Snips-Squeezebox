@@ -242,7 +242,7 @@ class LMSController:
 
         player = device.player
 
-        try:
+        if player.connected:
             query_params = list()
             artist = slot_dict.get('artist')
             album = slot_dict.get('album')
@@ -273,7 +273,7 @@ class LMSController:
 
             return None
 
-        except requests.exceptions.ConnectionError:
+        else:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
     def pause_music(self, slot_dict, request_siteid):
@@ -284,7 +284,7 @@ class LMSController:
         if err:
             return
         for d in devices:
-            if d.player:
+            if d.player.connected:
                 d.auto_pause = False
                 d.player.pause()
         return
@@ -297,7 +297,7 @@ class LMSController:
         if err:
             return
         for d in devices:
-            if d.player and d.player.mode in ["pause", "stop"]:
+            if d.player.connected and d.player.mode in ["pause", "stop"]:
                 d.auto_pause = False
                 d.player.play(1.1)
         return
@@ -310,7 +310,7 @@ class LMSController:
         if err:
             return
         for d in devices:
-            if d.player:
+            if d.player.connected:
                 if slot_dict.get('volume_absolute'):
                     d.player.volume = slot_dict.get('volume_absolute')
                 elif slot_dict.get('direction') == "lower":

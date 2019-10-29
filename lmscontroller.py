@@ -8,7 +8,7 @@ class Device:
     def __init__(self, device_dict, player):
         self.name = device_dict['name']
         self.names_list = device_dict['names_list']
-        self.synonym = device_dict['synonym']
+        self.synonyms = device_dict['synonyms']
         self.bluetooth = device_dict['bluetooth']
         self.mac = device_dict['squeezelite_mac']
         self.soundcard = device_dict['soundcard']
@@ -43,7 +43,7 @@ class Site:
             device = self.devices_dict[device_dict['squeezelite_mac']]
             device.name = device_dict['name']
             device.names_list = device_dict['names_list']
-            device.synonym = device_dict['synonym']
+            device.synonyms = device_dict['synonyms']
             device.bluetooth = device_dict['bluetooth']
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
@@ -223,11 +223,15 @@ class LMSController:
                 'request_siteid': request_siteid,
                 'tried_service_start': True
             }
+            if device.synonyms:
+                client_name = device.synonyms[0]
+            else:
+                client_name = device.name
             payload = {  # information for squeezelite service
                 'server': self.server.host,
                 'squeeze_mac': device.mac,
                 'soundcard': device.soundcard,
-                'name': device.synonym  # TODO: Don't use synonym if not available
+                'name': client_name
             }
             self.mqtt_client.publish(
                 f'squeezebox/request/oneSite/{site.site_id}/serviceStart',

@@ -195,15 +195,12 @@ class LMSController:
 
         # Connect bluetooth device if necessary
         if device.bluetooth and not device.bluetooth['is_connected']:
-            if site.pending_action and site.pending_action.get('tried_device_connect'):
-                return
             site.pending_action = {
                 'action': "new_music",
                 'slot_dict': slot_dict,
                 'request_siteid': request_siteid,
-                'tried_device_connect': True
             }
-            payload = {  # Information for bluetooth connection
+            payload = {  # information for bluetooth connection
                 'addr': device.bluetooth['addr'],
                 'tries': 3
             }
@@ -216,6 +213,7 @@ class LMSController:
         if not device.player.connected:
 
             if site.pending_action.get('tried_service_start'):
+                site.pending_action = dict()
                 return "Das Abspielprogramm wurde nicht richtig gestartet."
 
             # Start squeezelite service

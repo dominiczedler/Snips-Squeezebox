@@ -6,6 +6,7 @@
 
 from .tags import LMSTags
 from .utils import LMSUtils
+import requests
 
 
 DETAILED_TAGS = [LMSTags.ARTIST,
@@ -35,13 +36,17 @@ class LMSPlayer(LMSUtils):
     server.
     """
 
-    def __init__(self, ref, server):
+    def __init__(self, ref, server, do_update=True, name=None):
         self.server = server
         self.ref = ref
-        self._name = None
+        if name:
+            self._name = name
+        else:
+            self._name = None
         self._model = None
         self._ip = None
-        self.update()
+        if do_update:
+            self.update()
 
     @classmethod
     def from_index(cls, index, server):
@@ -210,6 +215,17 @@ class LMSPlayer(LMSUtils):
         :returns: curent mode (e.g. "play", "pause")
         """
         return self.parse_request("mode ?", "_mode")
+
+    @property
+    def connected(self):
+        """
+        :rtype: str, unicode
+        :returns: curent mode (e.g. "play", "pause")
+        """
+        try:
+            return self.parse_request("connected ?", "_connected") == 1
+        except requests.ConnectionError:
+            return False
 
     @property
     def muted(self):

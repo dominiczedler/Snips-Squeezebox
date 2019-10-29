@@ -1,2 +1,5 @@
 [secret]
 lms_api_location="localhost:9000"
+
+[static]
+config_ver=0.1

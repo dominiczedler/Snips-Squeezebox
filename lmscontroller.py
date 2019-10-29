@@ -5,14 +5,14 @@ import re
 
 
 class Device:
-    def __init__(self, device_dict):
+    def __init__(self, device_dict, player):
         self.name = device_dict['name']
         self.names_list = device_dict['names_list']
         self.synonym = device_dict['synonym']
         self.bluetooth = device_dict['bluetooth']
         self.mac = device_dict['squeezelite_mac']
         self.soundcard = device_dict['soundcard']
-        self.player = None
+        self.player = player
         self.auto_pause = False
 
 
@@ -32,11 +32,12 @@ class Site:
         self.area = data['area']
         self.auto_pause = data['auto_pause']
         self.default_device_name = data['default_device']
-        connected_players = server.get_players()
 
         for device_dict in data['devices']:
             if device_dict['squeezelite_mac'] not in self.devices_dict:
-                device = Device(device_dict)
+                player = LMSTools.LMSPlayer(device_dict['squeezelite_mac'], server,
+                                            do_update=False, name=device_dict['name'])
+                device = Device(device_dict, player)
                 self.devices_dict[device.mac] = device
 
             device = self.devices_dict[device_dict['squeezelite_mac']]
@@ -46,9 +47,6 @@ class Site:
             device.bluetooth = device_dict['bluetooth']
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
-            found = [player for player in connected_players if player.ref == device.mac]
-            if found:
-                device.player = found[0]
 
     def get_devices(self, slot_dict, default_device):
         if slot_dict.get('device'):
@@ -215,30 +213,20 @@ class LMSController:
             )
             return None
 
-        found = [player for player in self.server.get_players() if player.ref == device.mac]
-        if found:
-            device.player = found[0]
-        else:
-            device.player = None
-
-        tries = site.pending_action.get('tried_service_start')
-        if tries and tries > 10:
+        if site.pending_action.get('tried_service_start'):
             return "Das Abspielprogramm wurde nicht richtig gestartet."
 
-        if not tries or not device.player:
-            if not tries:
-                tries = 1
-            else:
-                tries += 1
+        if not device.player.connected:
 
             # Start squeezelite service
             site.pending_action = {
                 'action': "new_music",
                 'slot_dict': slot_dict,
                 'request_siteid': request_siteid,
-                'tried_service_start': tries
+                'tried_service_start': True
             }
             payload = {  # information for squeezelite service
+                'server': self.server.host,
                 'squeeze_mac': device.mac,
                 'soundcard': device.soundcard,
                 'name': device.synonym  # TODO: Don't use synonym if not available

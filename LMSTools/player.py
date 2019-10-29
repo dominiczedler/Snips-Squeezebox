@@ -223,8 +223,9 @@ class LMSPlayer(LMSUtils):
         :returns: curent mode (e.g. "play", "pause")
         """
         try:
-            return self.parse_request("connected ?", "_connected") == 1
-        except requests.ConnectionError:
+            status = self.parse_request("connected ?", "_connected")
+            return status == 1
+        except requests.exceptions.ConnectionError:
             return False
 
     @property

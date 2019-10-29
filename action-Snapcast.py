@@ -172,7 +172,7 @@ def session_started_received(client, userdata, msg):
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
-        if d.player and d.player.mode == "play":
+        if d.player.connected and d.player.mode == "play":
             d.auto_pause = True
             d.player.pause()
 
@@ -184,7 +184,7 @@ def session_ended_received(client, userdata, msg):
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
-        if d.player and d.player.mode == "pause" and d.auto_pause:
+        if d.player.connected and d.player.mode == "pause" and d.auto_pause:
             d.auto_pause = False
             d.player.play(1.1)
 

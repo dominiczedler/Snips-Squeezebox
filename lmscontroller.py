@@ -1,17 +1,17 @@
 import LMSTools
-import requests
 import json
 import re
 
 
 class Device:
-    def __init__(self, device_dict, player):
-        self.name = device_dict['name']
-        self.names_list = device_dict['names_list']
-        self.synonyms = device_dict['synonyms']
-        self.bluetooth = device_dict['bluetooth']
-        self.mac = device_dict['squeezelite_mac']
-        self.soundcard = device_dict['soundcard']
+    def __init__(self, player):
+        self.name = str()
+        self.site_id = str()
+        self.names_list = list()
+        self.synonyms = list()
+        self.bluetooth = dict()
+        self.mac = str()
+        self.soundcard = str()
         self.player = player
         self.auto_pause = False
 
@@ -25,6 +25,10 @@ class Site:
         self.default_device_name = None
         self.devices_dict = dict()
         self.pending_action = dict()
+        self.need_connection_queue = list()
+        self.need_service_queue = list()
+        self.action_target = None
+        self.action_target_args = None
 
     def update(self, data, server):
         self.room_name = data['room_name']
@@ -34,36 +38,34 @@ class Site:
         self.default_device_name = data['default_device']
 
         for device_dict in data['devices']:
-            if device_dict['squeezelite_mac'] not in self.devices_dict:
-                player = LMSTools.LMSPlayer(device_dict['squeezelite_mac'], server,
-                                            do_update=False, name=device_dict['name'])
-                device = Device(device_dict, player)
-                self.devices_dict[device.mac] = device
+            if not self.devices_dict.get('squeezelite_mac'):
+                player = LMSTools.LMSPlayer(device_dict['squeezelite_mac'], server, False, device_dict['name'])
+                self.devices_dict[device_dict['squeezelite_mac']] = Device(player)
 
             device = self.devices_dict[device_dict['squeezelite_mac']]
             device.name = device_dict['name']
+            device.site_id = self.site_id
             device.names_list = device_dict['names_list']
             device.synonyms = device_dict['synonyms']
             device.bluetooth = device_dict['bluetooth']
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
 
-    def get_devices(self, slot_dict, default_device):
+    def get_device(self, slot_dict, default_device):
         if slot_dict.get('device'):
             if slot_dict.get('device') == "alle":
-                found = [self.devices_dict[mac] for mac in self.devices_dict]
-                if not found:
-                    return f"Im Raum {self.room_name} gibt es keine Geräte.", None
+                return f"Es geht nur ein Gerät pro Raum.", None
             else:
                 found = [self.devices_dict[mac] for mac in self.devices_dict
                          if slot_dict['device'] in self.devices_dict[mac].names_list]
         else:
             found = [self.devices_dict[mac] for mac in self.devices_dict
                      if default_device in self.devices_dict[mac].names_list]
+
         if not found:
             return f"Dieses Gerät gibt es im Raum {self.room_name} nicht.", None
         else:
-            return None, found
+            return None, found[0]
 
 
 class LMSController:
@@ -74,105 +76,186 @@ class LMSController:
         self.pending_actions = dict()
         self.current_status = dict()
 
-    def get_music_names(self):
-        try:
-            all_titles = list()
-            titles = self.server.request(params="titles list")
-            if titles.get('count') >= 1:
-                for title_dict in titles.get('titles_loop'):
-                    title = title_dict['title']
-                    if title not in all_titles:
-                        all_titles.append(title)
+    def get_inject_operations(self, requested_types: str) -> (str, list):
+        if not self.server.connected():
+            err = "Die Namen konnten nicht gesammelt werden. Es besteht keine Verbindung zum Medien Server."
+            return err, None
 
-            all_albums = list()
-            albums = self.server.request(params="albums list")
-            if albums.get('count') >= 1:
-                for album_dict in albums.get('albums_loop'):
-                    album = album_dict['album']
-                    if album not in all_albums:
-                        all_albums.append(album)
+        requested_types = [requested_types]  # TODO: Multiple types at the same time
 
-            all_artists = list()
-            artists = self.server.request(params="artists list")
-            if artists.get('count') >= 1:
-                for artist_dict in artists.get('artists_loop'):
-                    for artist in re.split(r'; |;|, |,', artist_dict['artist']):
-                        if artist and artist not in all_artists:
-                            all_artists.append(artist)
+        if not requested_types:
+            requested_types = ["device", "room", "area", "album", "artist", "title", "playlist", "genre"]
+        elif "music" in requested_types:
+            requested_types = ["album", "artist", "title", "playlist", "genre"]
+        elif "favorite" in requested_types:
+            requested_types = ["radio", "podcast"]
 
-            all_genres = list()
-            genres = self.server.request(params="genres list")
-            if genres.get('count') >= 1:
-                for genre_dict in genres.get('genres_loop'):
-                    for genre in re.split(r'; |;|, |,|/| / ', genre_dict['genre']):
-                        if genre and genre not in all_genres:
-                            all_genres.append(genre)
+        operations = list()
+        if "title" in requested_types:
+            titles = self.get_music_titles()
+            if titles:
+                operations.append(('addFromVanilla', {'squeezebox_titles': titles}))
+        if "artist" in requested_types:
+            artists = self.get_music_artists()
+            if artists:
+                operations.append(('addFromVanilla', {'squeezebox_artists': artists}))
+        if "album" in requested_types:
+            albums = self.get_music_albums()
+            if albums:
+                operations.append(('addFromVanilla', {'squeezebox_albums': albums}))
+        if "genre" in requested_types:
+            genres = self.get_music_genres()
+            if genres:
+                operations.append(('addFromVanilla', {'squeezebox_genres': genres}))
+        if "playlist" in requested_types:
+            playlists = self.get_music_playlists()
+            if playlists:
+                operations.append(('addFromVanilla', {'squeezebox_playlists': playlists}))
+        if "radio" in requested_types:
+            radios = self.get_radio_stations()
+            if radios:
+                operations.append(('addFromVanilla', {'squeezebox_radios': radios}))
+        if "podcast" in requested_types:
+            podcasts = self.get_podcast_titles()
+            if podcasts:
+                operations.append(('addFromVanilla', {'squeezebox_podcasts': podcasts}))
+        if "device" in requested_types:
+            devices = self.get_site_names('devices')
+            if devices:
+                operations.append(('addFromVanilla', {'audio_devices': devices}))
+        if "rooms" in requested_types:
+            rooms = self.get_site_names('rooms')
+            if rooms:
+                operations.append(('addFromVanilla', {'squeezebox_rooms': rooms}))
+        if "area" in requested_types:
+            areas = self.get_site_names('areas')
+            if areas:
+                operations.append(('addFromVanilla', {'squeezebox_areas': areas}))
 
-            all_playlists = list()
-            playlists = self.server.request(params="playlists list")
-            if playlists.get('count') >= 1:
-                for playlist_dict in playlists.get('playlists_loop'):
-                    playlist = playlist_dict['playlist']
-                    if playlist not in all_playlists:
-                        all_playlists.append(playlist)
+        if not operations:
+            return "Es gibt nichts hinzuzufügen.", None
+        else:
+            return None, operations
 
-            all_names = {
-                'titles': all_titles,
-                'albums': all_albums,
-                'artists': all_artists,
-                'genres': all_genres,
-                'playlists': all_playlists
-            }
-            return False, all_names
+    def get_music_albums(self) -> list:
+        all_albums = list()
+        albums = self.server.request(params="albums list")
+        if albums.get('count') >= 1:
+            for album_dict in albums.get('albums_loop'):
+                album = album_dict['album']
+                if album not in all_albums:
+                    all_albums.append(album)
+        return all_albums
 
-        except requests.exceptions.ConnectionError:
-            return True, None
+    def get_music_titles(self) -> list:
+        all_titles = list()
+        titles = self.server.request(params="titles list")
+        if titles.get('count') >= 1:
+            for title_dict in titles.get('titles_loop'):
+                title = title_dict['title']
+                if title not in all_titles:
+                    all_titles.append(title)
+        return all_titles
 
-    def get_site(self, request_siteid, slot_dict=None):
+    def get_music_artists(self) -> list:
+        all_artists = list()
+        artists = self.server.request(params="artists list")
+        if artists.get('count') >= 1:
+            for artist_dict in artists.get('artists_loop'):
+                for artist in re.split(r'; |;|, |,', artist_dict['artist']):
+                    if artist and artist not in all_artists:
+                        all_artists.append(artist)
+        return all_artists
+
+    def get_music_genres(self) -> list:
+        all_genres = list()
+        genres = self.server.request(params="genres list")
+        if genres.get('count') >= 1:
+            for genre_dict in genres.get('genres_loop'):
+                for genre in re.split(r'; |;|, |,|/| / ', genre_dict['genre']):
+                    if genre and genre not in all_genres:
+                        all_genres.append(genre)
+        return all_genres
+
+    def get_music_playlists(self) -> list:
+        all_playlists = list()
+        playlists = self.server.request(params="playlists list")
+        if playlists.get('count') >= 1:
+            for playlist_dict in playlists.get('playlists_loop'):
+                playlist = playlist_dict['playlist']
+                if playlist not in all_playlists:
+                    all_playlists.append(playlist)
+        return all_playlists
+
+    def get_radio_stations(self) -> list:
+        all_radios = list()
+        count = self.server.request(params="favorites items").get('count')
+        if count:
+            favorite_dicts = self.server.request(params=f"favorites items 0 {count}")['loop_loop']
+            music_titles = self.get_music_titles()
+            for favorite_dict in favorite_dicts:
+                name = favorite_dict['name']
+                if name not in all_radios and favorite_dict['is_audio'] and name not in music_titles:
+                    all_radios.append(name)
+        return all_radios
+
+    def get_podcast_titles(self) -> list:
+        all_podcasts = list()
+        count = self.server.request(params="favorites items").get('count')
+        if count:
+            favorite_dicts = self.server.request(params=f"favorites items 0 {count}")['loop_loop']
+            music_albums = self.get_music_albums()
+            music_artists = self.get_music_artists()
+            for favorite_dict in favorite_dicts:
+                name = favorite_dict['name']
+                if name not in all_podcasts and favorite_dict['hasitems'] \
+                        and name not in music_albums and name not in music_artists:
+                    all_podcasts.append(name)
+        return all_podcasts
+
+    def get_site_names(self, info_type: str) -> list:
+        all_names = list()
+        if info_type == "devices":
+            for site_id in self.sites_dict:
+                for device_name in self.sites_dict[site_id].devices_dict:
+                    device = self.sites_dict[site_id].devices_dict[device_name]
+                    for name in device.names_list:
+                        if name not in all_names:
+                            all_names.append(name)
+        elif info_type == "areas":
+            for site_id in self.sites_dict:
+                if self.sites_dict[site_id].area not in all_names:
+                    all_names.append(self.sites_dict[site_id].area)
+        elif info_type == "rooms":
+            for site_id in self.sites_dict:
+                if self.sites_dict[site_id].room_name not in all_names:
+                    all_names.append(self.sites_dict[site_id].room_name)
+        return all_names
+
+    def get_sites(self, request_siteid, slot_dict=None, single=False):
         if slot_dict and slot_dict.get('room'):
             if slot_dict.get('room') == "hier":
                 if not self.sites_dict.get(request_siteid):
                     return "Dieser Raum hier wurde noch nicht konfiguriert.", None
                 else:
-                    return None, self.sites_dict[request_siteid]
+                    return None, [self.sites_dict[request_siteid]]
             elif slot_dict.get('room') == "alle":
-                # TODO: return all sites
-                return None, self.sites_dict[request_siteid]
+                if not single:
+                    return None, [self.sites_dict[site_id] for site_id in self.sites_dict]
+                else:
+                    return "Diese Funktion gibt es nicht.", None
             else:
                 dict_rooms = {self.sites_dict[siteid].room_name: self.sites_dict[siteid]
                               for siteid in self.sites_dict}
                 if slot_dict.get('room') not in dict_rooms:
                     return f"Der Raum {slot_dict.get('room')} wurde noch nicht konfiguriert.", None
                 else:
-                    return None, dict_rooms[slot_dict.get('room')]
+                    return None, [dict_rooms[slot_dict.get('room')]]
         else:
             if not self.sites_dict.get(request_siteid):
                 return "Dieser Raum hier wurde noch nicht konfiguriert.", None
             else:
-                return None, self.sites_dict[request_siteid]
-
-    def get_all_site_names(self):
-        all_rooms = list()
-        all_devices = list()
-        all_areas = list()
-        for site_id in self.sites_dict:
-            if self.sites_dict[site_id].room_name not in all_rooms:
-                all_rooms.append(self.sites_dict[site_id].room_name)
-
-            if self.sites_dict[site_id].area not in all_areas:
-                all_areas.append(self.sites_dict[site_id].area)
-
-            for device_name in self.sites_dict[site_id].devices_dict:
-                device = self.sites_dict[site_id].devices_dict[device_name]
-                for name in device.names_list:
-                    if name not in all_devices:
-                        all_devices.append(name)
-        all_names = {
-            'rooms': all_rooms,
-            'areas': all_areas,
-            'devices': all_devices
-        }
-        return all_names
+                return None, [self.sites_dict[request_siteid]]
 
     def get_player(self, site_info):
         player = self.server.get_player_from_name(site_info['room_name'])
@@ -181,156 +264,210 @@ class LMSController:
         else:
             return "Diesen Player gibt es nicht.", None
 
-    def new_music(self, slot_dict, request_siteid):
-
-        err, site = self.get_site(request_siteid, slot_dict)
-        if err:
-            return err
-
-        err, devices = site.get_devices(slot_dict, site.default_device_name)
-        if err:
-            return err
-
-        device = devices[0]  # TODO: Start same music on multiple devices
-
-        # Connect bluetooth device if necessary
-        if device.bluetooth and not device.bluetooth['is_connected']:
-            site.pending_action = {
-                'action': "new_music",
-                'slot_dict': slot_dict,
-                'request_siteid': request_siteid,
-            }
-            payload = {  # information for bluetooth connection
-                'addr': device.bluetooth['addr'],
-                'tries': 3
-            }
-            self.mqtt_client.publish(  # request bluetooth connection
-                f'bluetooth/request/oneSite/{site.site_id}/deviceConnect',
-                json.dumps(payload)
-            )
-            return None
-
-        if not device.player.connected:
-
-            if site.pending_action.get('tried_service_start'):
-                site.pending_action = dict()
-                return "Das Abspielprogramm wurde nicht richtig gestartet."
-
-            # Start squeezelite service
-            site.pending_action = {
-                'action': "new_music",
-                'slot_dict': slot_dict,
-                'request_siteid': request_siteid,
-                'tried_service_start': True
-            }
-            if device.synonyms:
-                client_name = device.synonyms[0]
-            else:
-                client_name = device.name
-            payload = {  # information for squeezelite service
-                'server': self.server.host,
-                'squeeze_mac': device.mac,
-                'soundcard': device.soundcard,
-                'name': client_name
-            }
-            self.mqtt_client.publish(
-                f'squeezebox/request/oneSite/{site.site_id}/serviceStart',
-                json.dumps(payload)
-            )
-            return None
-
-        if site.pending_action:
-            site.pending_action = dict()
-
-        player = device.player
-
-        if player.connected:
-            query_params = list()
-            artist = slot_dict.get('artist')
-            album = slot_dict.get('album')
-            title = slot_dict.get('title')
-            genre = slot_dict.get('genre')
-            if album or title:
-                if artist:
-                    query_params.append(f"contributor.namesearch={'+'.join(artist.split(' '))}")
-                if album:
-                    query_params.append(f"album.titlesearch={'+'.join(album.split(' '))}")
-                if title:
-                    query_params.append(f"track.titlesearch={'+'.join(title.split(' '))}")
-                if genre:
-                    query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
-                player.request(f"playlist shuffle 0")
-                player.request(f"playlist loadtracks {'&'.join(query_params)}")
-            elif artist:
-                query_params = [f"contributor.namesearch={'+'.join(artist.split(' '))}"]
-                player.request("playlist shuffle 1")
-                player.request(f"playlist loadtracks {'&'.join(query_params)}")
-            elif genre:
-                player.request("randomplaygenreselectall 0")
-                player.request(f"randomplaychoosegenre {genre} 1")
-                player.request("randomplay tracks")
-            else:
-                player.request("randomplaygenreselectall 1")
-                player.request("randomplay tracks")
-
-            return None
-
-        else:
+    def make_devices_ready(self, slot_dict, request_siteid, target=None, args=()):
+        if not self.server.connected:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
+        request_site = self.sites_dict.get(request_siteid)
+        if not request_site:
+            return "Dieser Raum hier wurde noch nicht konfiguriert."
+
+        if not request_site.action_target:
+            err, sites = self.get_sites(request_siteid, slot_dict)
+            if err:
+                return err
+
+            request_site.action_target = target
+            request_site.action_target_args = args
+            request_site.need_connection_queue = list()
+
+            for site in sites:
+                err, device = site.get_device(slot_dict, site.default_device_name)
+                if err:
+                    return err
+                if device.bluetooth and not device.bluetooth['is_connected']:
+                    request_site.need_connection_queue.append(device)
+                if not device.player.connected:
+                    request_site.need_service_queue.append(device)
+
+        if request_site.need_connection_queue:
+            for device in request_site.need_connection_queue:
+                site = self.sites_dict[device.site_id]
+                site.pending_action = {
+                    'slot_dict': slot_dict,
+                    'request_siteid': request_siteid,
+                    'device': device,
+                }
+                payload = {  # information for bluetooth connection
+                    'addr': device.bluetooth['addr'],
+                    'tries': 3
+                }
+                self.mqtt_client.publish(  # request bluetooth connection
+                    f'bluetooth/request/oneSite/{site.site_id}/deviceConnect',
+                    json.dumps(payload)
+                )
+            return None
+
+        if request_site.need_service_queue:
+            for device in request_site.need_service_queue:
+                site = self.sites_dict[device.site_id]
+
+                site.pending_action = {
+                    'slot_dict': slot_dict,
+                    'request_siteid': request_siteid,
+                    'device': device
+                }
+
+                client_name = site.room_name
+                areas = list()
+                for site_id in self.sites_dict:
+                    area = self.sites_dict[site_id]['area']
+                    if area not in areas:
+                        areas.append(area)
+                if len(areas) > 1:
+                    client_name += f"-{site.area}"
+                if device.synonyms:
+                    client_name += f"-{device.synonyms[0]}"
+                else:
+                    client_name += f"-{device.name}"
+
+                payload = {  # information for squeezelite service
+                    'server': self.server.host,
+                    'squeeze_mac': device.mac,
+                    'soundcard': device.soundcard,
+                    'name': client_name  # TODO: Add area if necessary
+                }
+                self.mqtt_client.publish(
+                    f'squeezebox/request/oneSite/{site.site_id}/serviceStart',
+                    json.dumps(payload)
+                )
+            return None
+
+        if request_site.action_target:  # Call target function after all queues
+            result = request_site.action_target(*request_site.action_target_args)
+            return result
+
+    def new_music(self, slot_dict, request_siteid):
+        err, sites = self.get_sites(request_siteid, slot_dict)
+        if err or not self.server.connected():
+            return
+
+        err, request_site = self.get_sites(request_siteid)
+        if err:
+            return err
+        else:
+            request_site = request_site[0]
+
+        if len(sites) > 1:
+            if request_site in sites:
+                err, device = request_site.get_device(slot_dict, request_site.default_device_name)
+                if err:
+                    return err
+                player = device.player
+                sites.remove(request_site)
+            else:
+                err, device = sites[0].get_device(slot_dict, sites[0].default_device_name)
+                if err:
+                    return err
+                player = device.player
+                del sites[0]
+            for site in sites:
+                err, device = site.get_device(slot_dict, site.default_device_name)
+                if err:
+                    return err
+                player.sync(player=device.player)
+        else:
+            site = sites[0]
+            err, device = site.get_device(slot_dict, site.default_device_name)
+            if err:
+                return err
+            player = device.player
+
+        query_params = list()
+        artist = slot_dict.get('artist')
+        album = slot_dict.get('album')
+        title = slot_dict.get('title')
+        genre = slot_dict.get('genre')
+        if album or title:
+            if artist:
+                query_params.append(f"contributor.namesearch={'+'.join(artist.split(' '))}")
+            if album:
+                query_params.append(f"album.titlesearch={'+'.join(album.split(' '))}")
+            if title:
+                query_params.append(f"track.titlesearch={'+'.join(title.split(' '))}")
+            if genre:
+                query_params.append(f"genre.namesearch={'+'.join(genre.split(' '))}")
+            player.request(f"playlist shuffle 0")
+            player.request(f"playlist loadtracks {'&'.join(query_params)}")
+        elif artist:
+            query_params = [f"contributor.namesearch={'+'.join(artist.split(' '))}"]
+            player.request("playlist shuffle 1")
+            player.request(f"playlist loadtracks {'&'.join(query_params)}")
+        elif genre:
+            if genre not in self.get_music_genres():
+                return "Zu dieser Stilrichtung gibt es noch keine Musik."
+            player.request("randomplaygenreselectall 0")
+            player.request(f"randomplaychoosegenre {genre} 1")
+            player.request("randomplay tracks")
+        else:
+            player.request("randomplaygenreselectall 1")
+            player.request("randomplay tracks")
+
+        return None
+
     def pause_music(self, slot_dict, request_siteid):
-        err, site = self.get_site(request_siteid, slot_dict)
-        if err:
+        err, sites = self.get_sites(request_siteid, slot_dict)
+        if err or not self.server.connected():
             return
-        err, devices = site.get_devices(slot_dict, site.default_device_name)
-        if err:
-            return
-        for d in devices:
-            if d.player.connected:
-                d.auto_pause = False
-                d.player.pause()
+        for site in sites:
+            err, device = site.get_device(slot_dict, site.default_device_name)
+            if err:
+                return
+            if device.player.connected:
+                device.auto_pause = False
+                device.player.pause()
         return
 
     def play_music(self, slot_dict, request_siteid):
-        err, site = self.get_site(request_siteid, slot_dict)
-        if err:
+        err, sites = self.get_sites(request_siteid, slot_dict)
+        if err or not self.server.connected():
             return
-        err, devices = site.get_devices(slot_dict, site.default_device_name)
-        if err:
-            return
-        for d in devices:
-            if d.player.connected and d.player.mode in ["pause", "stop"]:
-                d.auto_pause = False
-                d.player.play(1.1)
+        for site in sites:
+            err, device = site.get_device(slot_dict, site.default_device_name)
+            if err:
+                return
+            if device.player.connected and device.player.mode in ["pause", "stop"]:
+                device.auto_pause = False
+                device.player.play(1.1)
         return
 
     def change_volume(self, slot_dict, request_siteid):
-        err, site = self.get_site(request_siteid, slot_dict)
-        if err:
+        err, sites = self.get_sites(request_siteid, slot_dict)
+        if err or not self.server.connected():
             return
-        err, devices = site.get_devices(slot_dict, site.default_device_name)
-        if err:
-            return
-        for d in devices:
-            if d.player.connected:
+        for site in sites:
+            err, device = site.get_device(slot_dict, site.default_device_name)
+            if err:
+                return
+            if device.player.connected:
                 if slot_dict.get('volume_absolute'):
-                    d.player.volume = slot_dict.get('volume_absolute')
+                    device.player.volume = slot_dict.get('volume_absolute')
                 elif slot_dict.get('direction') == "lower":
                     if slot_dict.get('volume_change'):
-                        d.player.volume_down(slot_dict.get('volume_change'))
+                        device.player.volume_down(slot_dict.get('volume_change'))
                     else:
-                        d.player.volume_down(10)
+                        device.player.volume_down(10)
                 elif slot_dict.get('direction') == "higher":
                     if slot_dict.get('volume_change'):
-                        d.player.volume_up(slot_dict.get('volume_change'))
+                        device.player.volume_up(slot_dict.get('volume_change'))
                     else:
-                        d.player.volume_up(10)
+                        device.player.volume_up(10)
                 elif slot_dict.get('direction') == "low":
-                    d.player.volume = 30
+                    device.player.volume = 30
                 elif slot_dict.get('direction') == "high":
-                    d.player.volume = 70
+                    device.player.volume = 70
                 elif slot_dict.get('direction') == "lowest":
-                    d.player.volume = 10
+                    device.player.volume = 10
                 elif slot_dict.get('direction') == "highest":
-                    d.player.volume = 100
+                    device.player.volume = 100
         return

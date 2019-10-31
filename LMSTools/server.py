@@ -5,6 +5,7 @@ This code uses the JSON interface.
 
 import requests
 from .player import LMSPlayer
+from typing import Union
 
 
 class LMSConnectionError(Exception):
@@ -13,15 +14,13 @@ class LMSConnectionError(Exception):
 
 class LMSServer(object):
     """
-    :type host: str
-    :param host: address of LMS server (default "localhost")
-    :type port: int
-    :param port: port for the web interface (default 9000)
+    :param host: address of LMS server
+    :param port: port for the web interface
     Class for Logitech Media Server.
     Provides access via JSON interface. As the class uses the JSON interface, no active connections are maintained.
     """
 
-    def __init__(self, host="localhost", port=9000):
+    def __init__(self, host: str = "localhost", port: int = 9000):
         self.host = host
         self.port = port
         self._version = None
@@ -29,14 +28,12 @@ class LMSServer(object):
         self.web = "http://{h}:{p}/".format(h=host, p=port)
         self.url = "http://{h}:{p}/jsonrpc.js".format(h=host, p=port)
 
-    def request(self, player="-", params=None):
+    def request(self, player: str = "-", params: Union[str, list] = None) -> dict:
         """
-        :type player: str
         :param player: MAC address of a connected player. Alternatively, "-" can be used for server level requests.
-        :type params: str or list
         :param params: Request command
         """
-        if type(params) == str:
+        if isinstance(params, str):
             params = params.split()
 
         cmd = [player, params]
@@ -50,9 +47,8 @@ class LMSServer(object):
         self.id += 1
         return response.get("result")
 
-    def get_players(self):
+    def get_players(self) -> list:
         """
-        :rtype: list
         :returns: list of LMSPlayer instances
         Return a list of currently connected Squeezeplayers.
         """
@@ -71,9 +67,8 @@ class LMSServer(object):
         else:
             return None
 
-    def get_player_count(self):
+    def get_player_count(self) -> int:
         """
-        :rtype: int
         :returns: number of connected players
         """
         try:
@@ -82,9 +77,18 @@ class LMSServer(object):
             count = 0
         return count
 
-    def get_sync_groups(self):
+    def get_info_total(self, info_type: str) -> int:
         """
-        :rtype: list
+        :returns: number of unique items in database
+        """
+        try:
+            count = self.request(params=f"info total {info_type} ?")["_count"]
+        except requests.ConnectionError:
+            count = 0
+        return count
+
+    def get_sync_groups(self) -> list:
+        """
         :returns: list of syncgroups. Each group is a list of references of the members.
         """
         try:
@@ -94,9 +98,8 @@ class LMSServer(object):
             syncgroups = None
         return syncgroups
 
-    def show_players_sync_status(self):
+    def show_players_sync_status(self) -> dict:
         """
-        :rtype: dict
         :returns: dictionary (see attributes below)
         :attr group_count: (int) Number of sync groups
         :attr player_count: (int) Number of connected players
@@ -140,9 +143,8 @@ class LMSServer(object):
         except LMSConnectionError:
             return False
 
-    def ping(self):
+    def connected(self) -> bool:
         """
-        :rtype: bool
         :returns: True if server is alive, False if server is unreachable
         Method to test if server is active.
         """
@@ -154,9 +156,9 @@ class LMSServer(object):
             return False
 
     @property
-    def version(self):
+    def version(self) -> str:
         """
-        :attr version: Version number of server Software
+        :returns: Version number of server Software
         """
         if self._version is None:
             try:
@@ -165,9 +167,8 @@ class LMSServer(object):
                 self._version = None
         return self._version
 
-    def rescan(self, mode='fast'):
+    def rescan(self, mode: str = 'fast'):
         """
-        :type mode: str
         :param mode: Mode can be 'fast' for update changes on library, 'full' for complete library scan and 'playlists'
         for playlists scan only.
         Trigger rescan of the media library.

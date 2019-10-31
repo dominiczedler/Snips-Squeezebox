@@ -59,21 +59,11 @@ def msg_inject_names(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     end_session(client, data['sessionId'])
 
-    all_site_names = lmsctl.get_all_site_names()
-    err, all_music_names = lmsctl.get_music_names()
+    err, operations = lmsctl.get_inject_operations(get_slots(data).get('type'))
     if err:
-        text = "Die Namen konnten nicht gesammelt werden. Es besteht keine Verbindung zum Medien Server."
-        notify(client, text, data['siteId'])
+        notify(client, err, data['siteId'])
         return
 
-    operations = [('addFromVanilla', {'squeezebox_artists': all_music_names['artists']}),
-                  ('addFromVanilla', {'squeezebox_albums': all_music_names['albums']}),
-                  ('addFromVanilla', {'squeezebox_titles': all_music_names['titles']}),
-                  ('addFromVanilla', {'squeezebox_playlists': all_music_names['playlists']}),
-                  ('addFromVanilla', {'squeezebox_genres': all_music_names['genres']}),
-                  ('addFromVanilla', {'audio_devices': all_site_names['devices']}),
-                  ('addFromVanilla', {'squeezebox_rooms': all_site_names['rooms']}),
-                  ('addFromVanilla', {'squeezebox_areas': all_site_names['areas']})]
     request_id = str(uuid.uuid4())
     squeezebox.inject_requestids[request_id] = data['siteId']
     payload = {'id': request_id, 'operations': operations}
@@ -88,46 +78,49 @@ def msg_injection_complete(client, userdata, msg):
         notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", site_id)
 
 
-def msg_music_new(client, userdata, msg):
-    data = json.loads(msg.payload.decode("utf-8"))
-    slot_dict = get_slots(data)
-    err = lmsctl.new_music(slot_dict, data['siteId'])
-    end_session(client, data['sessionId'], err)
-
-
 def msg_result_device_connect(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
 
-    err, site = lmsctl.get_site(data['siteId'])
-    if err:
-        return err
+    site = lmsctl.sites_dict.get(data['siteId'])
+    if not site:
+        return
 
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
 
     if site.pending_action and data['result']:
-        found = [site.devices_dict[mac] for mac in site.devices_dict
-                 if site.devices_dict[mac].bluetooth and
-                 data['addr'] == site.devices_dict[mac].bluetooth['addr']]
-        if found:
-            found[0].bluetooth['is_connected'] = True
+        device = site.pending_action.get('device')
+        device.bluetooth['is_connected'] = True
 
-        if site.pending_action['action'] == "new_music":
-            print("next step")
+        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+        if not request_site:
+            site.pending_action = dict()
+            return
+        request_site.need_connection_queue.remove(device)
+
+        if len(request_site.need_connection_queue) == 0:
+            print("Connection queue is now empty: next step")
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']
-            err = lmsctl.new_music(slot_dict, request_siteid)
+            err = lmsctl.make_devices_ready(slot_dict, request_siteid, request_site.action_target)
             if err:
                 notify(mqtt_client, err, request_siteid)
+        site.pending_action = dict()
 
     elif site.pending_action and not data['result']:
+        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+        if not request_site:
+            site.pending_action = dict()
+            return
+        request_site.action_target = None
+        request_site.need_connection_queue.remove(site.pending_action.get('device'))
         site.pending_action = dict()
 
 
 def msg_result_device_disconnect(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
 
-    err, site = lmsctl.get_site(data['siteId'])
-    if err:
+    site = lmsctl.sites_dict.get(data['siteId'])
+    if not site:
         return
 
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
@@ -146,29 +139,47 @@ def msg_result_device_disconnect(client, userdata, msg):
 def msg_result_service_start(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
 
-    err, site = lmsctl.get_site(data['siteId'])
-    if err:
-        return err
+    site = lmsctl.sites_dict.get(data['siteId'])
+    if not site:
+        return
 
     if site.pending_action and data['result']:
+        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+        if not request_site:
+            site.pending_action = dict()
+            return
 
-        if site.pending_action['action'] == "new_music":
+        device = site.pending_action.get('device')
+        request_site.need_service_queue.remove(device)
+        if not device.player.connected:
+            request_site.action_target = None
+
+        if len(request_site.need_connection_queue) == 0:
+            print("Service queue is now empty: next step")
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']
-            err = lmsctl.new_music(slot_dict, request_siteid)
+            err = lmsctl.make_devices_ready(slot_dict, request_siteid, request_site.action_target)
             if err:
                 notify(mqtt_client, err, request_siteid)
+        site.pending_action = dict()
 
     elif site.pending_action and not data['result']:
-        request_siteid = site.pending_action['request_siteid']
+        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+        if not request_site:
+            site.pending_action = dict()
+            return
+        request_site.action_target = None
+        request_site.need_service_queue.remove(site.pending_action.get('device'))
+
+        text = f"Das Abspielprogramm konnte im Raum {site.room_name} nicht gestartet werden."
+        notify(mqtt_client, text, site.pending_action['request_siteid'])
         site.pending_action = dict()
-        notify(mqtt_client, "Das Abspielprogramm konnte auf dem Gerät nicht gestartet werden.", request_siteid)
 
 
 def session_started_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err, site = lmsctl.get_site(data['siteId'])
-    if err or not site.auto_pause:
+    site = lmsctl.sites_dict.get(data['siteId'])
+    if not site or not site.auto_pause:
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
@@ -179,14 +190,22 @@ def session_started_received(client, userdata, msg):
 
 def session_ended_received(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err, site = lmsctl.get_site(data['siteId'])
-    if err:
+    site = lmsctl.sites_dict.get(data['siteId'])
+    if not site:
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
         if d.player.connected and d.player.mode == "pause" and d.auto_pause:
             d.auto_pause = False
             d.player.play(1.1)
+
+
+def msg_music_new(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    slot_dict = get_slots(data)
+    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                                    target=lmsctl.new_music, args=(slot_dict, data['siteId']))
+    end_session(client, data['sessionId'], err)
 
 
 def msg_music_pause(client, userdata, msg):
@@ -278,10 +297,14 @@ if __name__ == "__main__":
 
     config = read_configuration_file('config.ini')
 
-    if config['secret'].get('lms_api_location'):
-        lms_location = config['secret'].get('lms_api_location').split(":")
+    lms_api_location = config['secret'].get('lms_api_location')
+    if lms_api_location:
+        lms_location = lms_api_location.split(":")
         lms_host = lms_location[0]
-        lms_port = int(lms_location[1])
+        if len(lms_location) == 2:
+            lms_port = int(lms_location[1])
+        else:
+            lms_port = 9000
     else:
         lms_host = "localhost"
         lms_port = 9000

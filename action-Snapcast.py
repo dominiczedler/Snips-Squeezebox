@@ -153,6 +153,8 @@ def msg_result_service_start(client, userdata, msg):
         request_site.need_service_queue.remove(device)
         if not device.player.connected:
             request_site.action_target = None
+            text = f"Das Abspielprogramm wurde im Raum {site.room_name} nicht richtig gestartet."
+            notify(mqtt_client, text, site.pending_action['request_siteid'])
 
         if len(request_site.need_service_queue) == 0:
             print("Service queue is now empty: next step")

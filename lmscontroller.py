@@ -321,7 +321,7 @@ class LMSController:
                 client_name = site.room_name
                 areas = list()
                 for site_id in self.sites_dict:
-                    area = self.sites_dict[site_id]['area']
+                    area = self.sites_dict[site_id].area
                     if area not in areas:
                         areas.append(area)
                 if len(areas) > 1:

@@ -154,7 +154,7 @@ def msg_result_service_start(client, userdata, msg):
         if not device.player.connected:
             request_site.action_target = None
 
-        if len(request_site.need_connection_queue) == 0:
+        if len(request_site.need_service_queue) == 0:
             print("Service queue is now empty: next step")
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']

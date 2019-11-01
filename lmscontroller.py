@@ -2,6 +2,7 @@ import LMSTools
 import json
 import re
 import random
+from typing import Callable
 
 
 class Device:
@@ -263,7 +264,8 @@ class LMSController:
             else:
                 return None, [self.sites_dict[request_siteid]]
 
-    def make_devices_ready(self, slot_dict, request_siteid, target=None, args=()):
+    def make_devices_ready(self, slots: dict, request_siteid: str, target: Callable = None, args: tuple = (),
+                           sites: list = None, use_active_devices: bool = False):
         if not self.server.connected:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
@@ -271,9 +273,10 @@ class LMSController:
         if not request_site:
             return "Dieser Raum hier wurde noch nicht konfiguriert."
 
-        err, sites = self.get_sites(request_siteid, slot_dict)
-        if err:
-            return err
+        if not sites:
+            err, sites = self.get_sites(request_siteid, slots)
+            if err:
+                return err
 
         if not request_site.action_target:
             request_site.action_target = target
@@ -282,19 +285,24 @@ class LMSController:
             request_site.need_service_queue = list()
 
             for site in sites:
-                err, device = site.get_device(slot_dict, site.default_device_name)
-                if err:
-                    return err
+                if use_active_devices and site.active_device:
+                    device = site.active_device
+                else:
+                    err, device = site.get_device(slots, site.default_device_name)
+                    if err:
+                        return err
                 if device.bluetooth and not device.bluetooth['is_connected']:
                     request_site.need_connection_queue.append(device)
                 if not device.player.connected:
                     request_site.need_service_queue.append(device)
+                else:
+                    site.active_device = device
 
         if request_site.need_connection_queue:
             for device in request_site.need_connection_queue:
                 site = self.sites_dict[device.site_id]
                 site.pending_action = {
-                    'slot_dict': slot_dict,
+                    'slot_dict': slots,
                     'request_siteid': request_siteid,
                     'device': device,
                 }
@@ -313,7 +321,7 @@ class LMSController:
                 site = self.sites_dict[device.site_id]
 
                 site.pending_action = {
-                    'slot_dict': slot_dict,
+                    'slot_dict': slots,
                     'request_siteid': request_siteid,
                     'device': device
                 }
@@ -342,12 +350,6 @@ class LMSController:
                     json.dumps(payload)
                 )
             return None
-
-        for site in sites:
-            err, device = site.get_device(slot_dict, site.default_device_name)
-            if err:
-                return err
-            site.active_device = device
 
         if request_site.action_target:  # Call target function after all queues
             result = request_site.action_target(*request_site.action_target_args)
@@ -514,7 +516,7 @@ class LMSController:
                     device.player.volume = 100
         return
 
-    def player_sync(self, slot_dict, request_siteid):
+    def player_sync_step1(self, slot_dict, request_siteid):
         if not slot_dict.get('master') or not slot_dict.get('slave'):
             return "Ich habe nicht beide Orte verstanden."
         err, master_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='master')
@@ -527,8 +529,16 @@ class LMSController:
             return err
         else:
             slave_site = slave_site[0]
+        result = self.make_devices_ready(slot_dict, request_siteid, target=self.player_sync_step2,
+                                         args=(master_site, slave_site,), sites=[master_site, slave_site],
+                                         use_active_devices=True)
+        return result
+
+    @staticmethod
+    def player_sync_step2(master_site, slave_site):
         master_device = master_site.active_device
         master_device.player.sync(player=slave_site.active_device.player)
+        return "Die Synchronisation war erfolgreich."
 
     def player_info(self, slot_dict, request_siteid):
         if not self.server.connected():

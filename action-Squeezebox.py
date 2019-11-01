@@ -212,10 +212,7 @@ def msg_player_volume(client, userdata, msg):
 
 def msg_player_sync(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    slot_dict = get_slots(data)
-    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                                    target=lmsctl.player_sync,
-                                    args=(slot_dict, data['siteId']))
+    err = lmsctl.player_sync_step1(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'], err)
 
 

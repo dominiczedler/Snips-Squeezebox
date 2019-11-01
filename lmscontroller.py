@@ -1,6 +1,7 @@
 import LMSTools
 import json
 import re
+import random
 
 
 class Device:
@@ -444,6 +445,11 @@ class LMSController:
         if err:
             return err
         station_name = slot_dict.get('radio')
+        if not station_name:
+            favorite_stations = self.get_radio_stations()
+            if not favorite_stations:
+                return "Es wurde kein Sender genannt und es gibt keine Sender in den Favoriten."
+            station_name = random.choice(favorite_stations)
         result = player.request(f"search items 0 50 search:{'+'.join(station_name.split(' '))}")
         if not result.get('count'):
             return "Es gibt keinen solchen Radiosender."

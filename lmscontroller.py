@@ -516,9 +516,13 @@ class LMSController:
         err, master_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='master')
         if err:
             return err
+        else:
+            master_site = master_site[0]
         err, slave_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='slave')
         if err or not self.server.connected():
             return err
+        else:
+            slave_site = slave_site[0]
         master_device = master_site.active_device
         master_device.player.sync(player=slave_site.active_device.player)
 

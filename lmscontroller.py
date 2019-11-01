@@ -198,7 +198,7 @@ class LMSController:
             music_titles = self.get_music_titles()
             for favorite_dict in favorite_dicts:
                 name = favorite_dict['name']
-                if name not in all_radios and favorite_dict['is_audio'] and name not in music_titles:
+                if name not in all_radios and favorite_dict['isaudio'] and name not in music_titles:
                     all_radios.append(name)
         return all_radios
 
@@ -501,14 +501,14 @@ class LMSController:
             return err
         podcast_name = slot_dict.get('podcast')
         result = player.request(f"search items 0 10 search:{'+'.join(podcast_name.split(' '))}")
-        if result.get('count') == 0:
+        if not result.get('count'):
             return "Es gibt keinen solchen Podcast."
         found_podcasts = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('hasitems')]
         if not found_podcasts:
             return "Es gibt nur Radios mit so einem Namen."
         podcast_id = found_podcasts[0].get('id')
         result = player.request(f"search items 0 10 item_id:{podcast_id}.0")
-        if result.get('count') == 0:
+        if not result.get('count'):
             return "Es gibt keine Episoden von diesem Podcast."
         found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('is_audio')]
         if not found_episodes:
@@ -524,7 +524,7 @@ class LMSController:
             return err
         station_name = slot_dict.get('radio')
         result = player.request(f"search items 0 10 search:{'+'.join(station_name.split(' '))}")
-        if result.get('count') == 0:
+        if not result.get('count'):
             return "Es gibt keinen solchen Radiosender."
         found_stations = [item_dict for item_dict in result.get('loop_loop') if not item_dict.get('hasitems')]
         if not found_stations:

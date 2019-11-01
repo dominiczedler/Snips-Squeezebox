@@ -336,7 +336,7 @@ class LMSController:
                     'server': self.server.host,
                     'squeeze_mac': device.mac,
                     'soundcard': device.soundcard,
-                    'name': client_name  # TODO: Add area if necessary
+                    'name': client_name
                 }
                 self.mqtt_client.publish(
                     f'squeezebox/request/oneSite/{site.site_id}/serviceStart',

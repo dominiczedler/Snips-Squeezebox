@@ -271,11 +271,11 @@ class LMSController:
         if not request_site:
             return "Dieser Raum hier wurde noch nicht konfiguriert."
 
-        if not request_site.action_target:
-            err, sites = self.get_sites(request_siteid, slot_dict)
-            if err:
-                return err
+        err, sites = self.get_sites(request_siteid, slot_dict)
+        if err:
+            return err
 
+        if not request_site.action_target:
             request_site.action_target = target
             request_site.action_target_args = args
             request_site.need_connection_queue = list()
@@ -289,8 +289,6 @@ class LMSController:
                     request_site.need_connection_queue.append(device)
                 if not device.player.connected:
                     request_site.need_service_queue.append(device)
-                else:
-                    site.active_device = device
 
         if request_site.need_connection_queue:
             for device in request_site.need_connection_queue:
@@ -344,6 +342,12 @@ class LMSController:
                     json.dumps(payload)
                 )
             return None
+
+        for site in sites:
+            err, device = site.get_device(slot_dict, site.default_device_name)
+            if err:
+                return err
+            site.active_device = device
 
         if request_site.action_target:  # Call target function after all queues
             result = request_site.action_target(*request_site.action_target_args)

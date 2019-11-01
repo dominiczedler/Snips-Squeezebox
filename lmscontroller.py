@@ -527,9 +527,9 @@ class LMSController:
         device = site.active_device
         if not device or not device.player.connected:
             return "Das gewünschte Gerät ist nicht aktiv."
-        artist = device.player.track_artist()
-        album = device.player.track_album()
-        title = device.player.track_title()
+        artist = device.player.track_artist
+        album = device.player.track_album
+        title = device.player.track_title
         return f"Gerade wird von {artist} aus {album} der Titel {title} gespielt."
 
     def queue_next(self, slot_dict, request_siteid):

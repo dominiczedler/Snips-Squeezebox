@@ -235,14 +235,15 @@ class LMSController:
                     all_names.append(self.sites_dict[site_id].room_name)
         return all_names
 
-    def get_sites(self, request_siteid, slot_dict=None, single=False):
-        if slot_dict and slot_dict.get('room'):
-            if slot_dict.get('room') == "hier":
+    def get_sites(self, request_siteid, slot_dict=None, single=False, room_slot='room'):
+        if slot_dict and slot_dict.get(room_slot):
+            room_slot_value = slot_dict.get(room_slot)
+            if room_slot_value == "hier":
                 if not self.sites_dict.get(request_siteid):
                     return "Dieser Raum hier wurde noch nicht konfiguriert.", None
                 else:
                     return None, [self.sites_dict[request_siteid]]
-            elif slot_dict.get('room') == "alle":
+            elif room_slot_value == "alle":
                 if not single:
                     return None, [self.sites_dict[site_id] for site_id in self.sites_dict]
                 else:
@@ -250,10 +251,10 @@ class LMSController:
             else:
                 dict_rooms = {self.sites_dict[siteid].room_name: self.sites_dict[siteid]
                               for siteid in self.sites_dict}
-                if slot_dict.get('room') not in dict_rooms:
-                    return f"Der Raum {slot_dict.get('room')} wurde noch nicht konfiguriert.", None
+                if room_slot_value not in dict_rooms:
+                    return f"Der Raum {room_slot_value} wurde noch nicht konfiguriert.", None
                 else:
-                    return None, [dict_rooms[slot_dict.get('room')]]
+                    return None, [dict_rooms[room_slot_value]]
         else:
             if not self.sites_dict.get(request_siteid):
                 return "Dieser Raum hier wurde noch nicht konfiguriert.", None
@@ -501,6 +502,18 @@ class LMSController:
                 elif slot_dict.get('direction') == "highest":
                     device.player.volume = 100
         return
+
+    def player_sync(self, slot_dict, request_siteid):
+        if not slot_dict.get('master') or not slot_dict.get('slave'):
+            return "Ich habe nicht beide Orte verstanden."
+        err, master_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='master')
+        if err:
+            return err
+        err, slave_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='slave')
+        if err or not self.server.connected():
+            return err
+        master_device = master_site.active_device
+        master_device.player.sync(player=slave_site.active_device.player)
 
     def queue_next(self, slot_dict, request_siteid):
         err, sites = self.get_sites(request_siteid, slot_dict, single=True)

@@ -118,7 +118,7 @@ def msg_result_device_disconnect(client, userdata, msg):
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/serviceStop')
 
-    found = [site.devices_dict[mac]for mac in site.devices_dict
+    found = [site.devices_dict[mac] for mac in site.devices_dict
              if site.devices_dict[mac].bluetooth and
              data['addr'] == site.devices_dict[mac].bluetooth['addr']]
     if not found:
@@ -126,6 +126,8 @@ def msg_result_device_disconnect(client, userdata, msg):
 
     device = found[0]
     device.bluetooth['is_connected'] = False
+    if device == site.active_device:
+        site.active_device = None
 
 
 def msg_result_service_start(client, userdata, msg):

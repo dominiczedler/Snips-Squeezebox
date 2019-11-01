@@ -212,8 +212,17 @@ def msg_player_volume(client, userdata, msg):
 
 def msg_player_sync(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err = lmsctl.player_sync(get_slots(data), data['siteId'])
+    slot_dict = get_slots(data)
+    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                                    target=lmsctl.player_sync,
+                                    args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
+
+
+def msg_player_info(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    text = lmsctl.player_info(get_slots(data), data['siteId'])
+    end_session(client, data['sessionId'], text)
 
 
 def msg_queue_next(client, userdata, msg):
@@ -302,10 +311,12 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerPlay'), msg_player_play)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'), msg_player_volume)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerSync'), msg_player_sync)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerInfo'), msg_player_info)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPause'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPlay'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerSync'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerInfo'))
 
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueNext'), msg_queue_next)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'), msg_queue_previous)

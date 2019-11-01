@@ -515,6 +515,22 @@ class LMSController:
         master_device = master_site.active_device
         master_device.player.sync(player=slave_site.active_device.player)
 
+    def player_info(self, slot_dict, request_siteid):
+        if not self.server.connected():
+            return "Der Server kann nicht erreicht werden."
+        err, sites = self.get_sites(request_siteid, slot_dict, single=True)
+        if err:
+            return err
+        else:
+            site = sites[0]
+        device = site.active_device
+        if not device or not device.player.connected:
+            return "Das gewünschte Gerät ist nicht aktiv."
+        artist = device.player.track_artist()
+        album = device.player.track_album()
+        title = device.player.track_title()
+        return f"Gerade wird von {artist} aus {album} der Titel {title} gespielt."
+
     def queue_next(self, slot_dict, request_siteid):
         err, sites = self.get_sites(request_siteid, slot_dict, single=True)
         if err or not self.server.connected():

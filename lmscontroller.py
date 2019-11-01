@@ -493,7 +493,7 @@ class LMSController:
         if device and device.player.connected:
             device.player.playlist_restart()
 
-    def podcast_new(self, slot_dict, request_siteid):
+    def podcast_latest(self, slot_dict, request_siteid):
         if not self.server.connected():
             return "Der Server ist nicht erreichbar."
         err, player = self.get_player_and_sync(slot_dict, request_siteid)
@@ -514,4 +514,20 @@ class LMSController:
         if not found_episodes:
             return "Es gibt keine Audio Episoden zu diesem Podcast."
         episode_id = found_episodes[0].get('id')  # TODO: Multiple episodes
-        player.request(f"podcast playlist add item_id:{episode_id}")
+        player.request(f"podcast playlist play item_id:{episode_id}")
+
+    def radio_new(self, slot_dict, request_siteid):
+        if not self.server.connected():
+            return "Der Server ist nicht erreichbar."
+        err, player = self.get_player_and_sync(slot_dict, request_siteid)
+        if err:
+            return err
+        station_name = slot_dict.get('radio')
+        result = player.request(f"search items 0 10 search:{'+'.join(station_name.split(' '))}")
+        if result.get('count') == 0:
+            return "Es gibt keinen solchen Radiosender."
+        found_stations = [item_dict for item_dict in result.get('loop_loop') if not item_dict.get('hasitems')]
+        if not found_stations:
+            return "Es gibt nur Podcasts mit so einem Namen."
+        station_id = found_stations[0].get('id')
+        player.request(f"podcast playlist play item_id:{station_id}")

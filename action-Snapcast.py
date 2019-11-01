@@ -237,9 +237,15 @@ def msg_queue_restart(client, userdata, msg):
     end_session(client, data['sessionId'])
 
 
-def msg_podcast_new(client, userdata, msg):
+def msg_podcast_latest(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err = lmsctl.podcast_new(get_slots(data), data['siteId'])
+    err = lmsctl.podcast_latest(get_slots(data), data['siteId'])
+    end_session(client, data['sessionId'], err)
+
+
+def msg_radio_new(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    err = lmsctl.radio_new(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'], err)
 
 
@@ -283,7 +289,8 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueNext'), msg_queue_next)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'), msg_queue_previous)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueRestart'), msg_queue_restart)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPodcastNew'), msg_podcast_new)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPodcastLatest'), msg_podcast_latest)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxRadioNew'), msg_radio_new)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
@@ -293,7 +300,8 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueNext'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueRestart'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPodcastNew'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPodcastLatest'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxRadioNew'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)

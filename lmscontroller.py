@@ -281,8 +281,8 @@ class LMSController:
             request_site.action_target = target
             request_site.action_target_args = args
             request_site.need_connection_queue = list()
+            request_site.need_service_queue = list()
 
-            print(sites)
             for site in sites:
                 err, device = site.get_device(slot_dict, site.default_device_name)
                 if err:

@@ -236,6 +236,7 @@ class LMSController:
         return all_names
 
     def get_sites(self, request_siteid, slot_dict=None, single=False, room_slot='room'):
+        # TODO: Look at area slot
         if slot_dict and slot_dict.get(room_slot):
             room_slot_value = slot_dict.get(room_slot)
             if room_slot_value == "hier":

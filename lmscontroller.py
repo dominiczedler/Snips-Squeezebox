@@ -260,13 +260,6 @@ class LMSController:
             else:
                 return None, [self.sites_dict[request_siteid]]
 
-    def get_player(self, site_info):
-        player = self.server.get_player_from_name(site_info['room_name'])
-        if player:
-            return None, player
-        else:
-            return "Diesen Player gibt es nicht.", None
-
     def make_devices_ready(self, slot_dict, request_siteid, target=None, args=()):
         if not self.server.connected:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
@@ -355,14 +348,14 @@ class LMSController:
             request_site.action_target_args = None
             return result
 
-    def new_music(self, slot_dict, request_siteid):
+    def get_player_and_sync(self, slot_dict, request_siteid):
         err, sites = self.get_sites(request_siteid, slot_dict)
-        if err or not self.server.connected():
-            return
+        if err:
+            return err, None
 
         err, request_site = self.get_sites(request_siteid)
         if err:
-            return err
+            return err, None
         else:
             request_site = request_site[0]
 
@@ -378,6 +371,14 @@ class LMSController:
                 player.sync(player=site.active_device.player)
         else:
             player = sites[0].active_device.player
+        return None, player
+
+    def new_music(self, slot_dict, request_siteid):
+        if not self.server.connected():
+            return "Der Server ist nicht erreichbar."
+        err, player = self.get_player_and_sync(slot_dict, request_siteid)
+        if err:
+            return err
 
         query_params = list()
         artist = slot_dict.get('artist')
@@ -491,3 +492,26 @@ class LMSController:
         device = site.active_device
         if device and device.player.connected:
             device.player.playlist_restart()
+
+    def podcast_new(self, slot_dict, request_siteid):
+        if not self.server.connected():
+            return "Der Server ist nicht erreichbar."
+        err, player = self.get_player_and_sync(slot_dict, request_siteid)
+        if err:
+            return err
+        podcast_name = slot_dict.get('podcast')
+        result = player.request(f"search items 0 10 search:{'+'.join(podcast_name.split(' '))}")
+        if result.get('count') == 0:
+            return "Es gibt keinen solchen Podcast."
+        found_podcasts = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('hasitems')]
+        if not found_podcasts:
+            return "Es gibt nur Radios mit so einem Namen."
+        podcast_id = found_podcasts[0].get('id')
+        result = player.request(f"search items 0 10 item_id:{podcast_id}.0")
+        if result.get('count') == 0:
+            return "Es gibt keine Episoden von diesem Podcast."
+        found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('is_audio')]
+        if not found_episodes:
+            return "Es gibt keine Audio Episoden zu diesem Podcast."
+        episode_id = found_episodes[0].get('id')  # TODO: Multiple episodes
+        player.request(f"podcast playlist add item_id:{episode_id}")

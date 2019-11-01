@@ -89,7 +89,8 @@ class LMSController:
             else:
                 requested_types = [requested_type]
         else:
-            requested_types = ["device", "room", "area", "album", "artist", "title", "playlist", "genre"]
+            requested_types = ["device", "room", "area", "album", "artist",
+                               "title", "playlist", "genre", "radio", "podcast"]
 
         operations = list()
         if "title" in requested_types:
@@ -347,6 +348,8 @@ class LMSController:
 
         if request_site.action_target:  # Call target function after all queues
             result = request_site.action_target(*request_site.action_target_args)
+            request_site.action_target = None
+            request_site.action_target_args = None
             return result
 
     def new_music(self, slot_dict, request_siteid):

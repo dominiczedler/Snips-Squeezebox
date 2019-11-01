@@ -189,33 +189,24 @@ def session_ended_received(client, userdata, msg):
             d.player.play(1.1)
 
 
-def msg_music_new(client, userdata, msg):
+def msg_player_pause(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    slot_dict = get_slots(data)
-    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                                    target=lmsctl.new_music,
-                                    args=(slot_dict, data['siteId']))
-    end_session(client, data['sessionId'], err)
-
-
-def msg_music_pause(client, userdata, msg):
-    data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.pause_music(get_slots(data), data['siteId'])
+    lmsctl.player_pause(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'])
 
 
-def msg_music_play(client, userdata, msg):
+def msg_player_play(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                              target=lmsctl.new_music,
+                              target=lmsctl.player_play,
                               args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'])
 
 
-def msg_volume_change(client, userdata, msg):
+def msg_player_volume(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.change_volume(get_slots(data), data['siteId'])
+    lmsctl.player_volume(get_slots(data), data['siteId'])
     end_session(client, data['sessionId'])
 
 
@@ -237,20 +228,29 @@ def msg_queue_restart(client, userdata, msg):
     end_session(client, data['sessionId'])
 
 
-def msg_podcast_latest(client, userdata, msg):
+def msg_music(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                                    target=lmsctl.podcast_latest,
+                                    target=lmsctl.music,
                                     args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
 
 
-def msg_radio_new(client, userdata, msg):
+def msg_podcast(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                                    target=lmsctl.radio_new,
+                                    target=lmsctl.podcast,
+                                    args=(slot_dict, data['siteId']))
+    end_session(client, data['sessionId'], err)
+
+
+def msg_radio(client, userdata, msg):
+    data = json.loads(msg.payload.decode("utf-8"))
+    slot_dict = get_slots(data)
+    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                                    target=lmsctl.radio,
                                     args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
 
@@ -288,27 +288,30 @@ def dialogue(client, session_id, text, intent_filter, custom_data=None):
 
 def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxInjectNames'), msg_inject_names)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicNew'), msg_music_new)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPause'), msg_music_pause)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusicPlay'), msg_music_play)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxVolumeChange'), msg_volume_change)
+    client.message_callback_add('hermes/injection/complete', msg_injection_complete)
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
+    client.subscribe('hermes/injection/complete')
+
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerPause'), msg_player_pause)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerPlay'), msg_player_play)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'), msg_player_volume)
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPause'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPlay'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'))
+
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueNext'), msg_queue_next)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'), msg_queue_previous)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueRestart'), msg_queue_restart)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPodcastLatest'), msg_podcast_latest)
-    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxRadioNew'), msg_radio_new)
-    client.message_callback_add('hermes/injection/complete', msg_injection_complete)
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicNew'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPause'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusicPlay'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxVolumeChange'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueNext'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'))
     client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueRestart'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPodcastLatest'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxRadioNew'))
-    client.subscribe('hermes/injection/complete')
+
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusic'), msg_music)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPodcast'), msg_podcast)
+    client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxRadio'), msg_radio)
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusic'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPodcast'))
+    client.subscribe('hermes/intent/' + add_prefix('squeezeboxRadio'))
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
     client.message_callback_add('squeezebox/answer/serviceStart', msg_result_service_start)

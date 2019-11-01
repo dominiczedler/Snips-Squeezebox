@@ -87,33 +87,25 @@ def msg_result_device_connect(client, userdata, msg):
 
     client.publish(f'squeezebox/request/oneSite/{site.site_id}/siteInfo')
 
-    if site.pending_action and data['result']:
+    if site.pending_action:
+        request_siteid = site.pending_action.get('request_siteid')
+        slot_dict = site.pending_action.get('slot_dict')
         device = site.pending_action.get('device')
-        device.bluetooth['is_connected'] = True
-
-        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+        site.pending_action = dict()
+        request_site = lmsctl.sites_dict.get(request_siteid)
         if not request_site:
-            site.pending_action = dict()
             return
+
+        device.bluetooth['is_connected'] = data['result']
         request_site.need_connection_queue.remove(device)
 
-        if len(request_site.need_connection_queue) == 0:
+        if data['result'] and len(request_site.need_connection_queue) == 0:
             print("Connection queue is now empty: next step")
-            slot_dict = site.pending_action['slot_dict']
-            request_siteid = site.pending_action['request_siteid']
-            site.pending_action = dict()
             err = lmsctl.make_devices_ready(slot_dict, request_siteid)
             if err:
                 notify(mqtt_client, err, request_siteid)
-
-    elif site.pending_action and not data['result']:
-        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
-        if not request_site:
-            site.pending_action = dict()
-            return
-        request_site.action_target = None
-        request_site.need_connection_queue.remove(site.pending_action.get('device'))
-        site.pending_action = dict()
+        elif not data['result']:
+            request_site.action_target = None
 
 
 def msg_result_device_disconnect(client, userdata, msg):
@@ -143,39 +135,32 @@ def msg_result_service_start(client, userdata, msg):
     if not site:
         return
 
-    if site.pending_action and data['result']:
-        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
+    if site.pending_action:
+        request_siteid = site.pending_action.get('request_siteid')
+        slot_dict = site.pending_action.get('slot_dict')
+        device = site.pending_action.get('device')
+        site.pending_action = dict()
+        request_site = lmsctl.sites_dict.get(request_siteid)
         if not request_site:
-            site.pending_action = dict()
             return
 
-        device = site.pending_action.get('device')
         request_site.need_service_queue.remove(device)
-        if not device.player.connected:
+
+        if data['result'] and device.player.connected:
+            site.active_device = device
+            if len(request_site.need_service_queue) == 0:
+                print("Service queue is now empty: next step")
+                err = lmsctl.make_devices_ready(slot_dict, request_siteid)
+                if err:
+                    notify(mqtt_client, err, request_siteid)
+        elif data['result'] and not device.player.connected:
             request_site.action_target = None
             text = f"Das Abspielprogramm wurde im Raum {site.room_name} nicht richtig gestartet."
+            notify(mqtt_client, text, request_siteid)
+        else:
+            request_site.action_target = None
+            text = f"Das Abspielprogramm konnte im Raum {site.room_name} nicht gestartet werden."
             notify(mqtt_client, text, site.pending_action['request_siteid'])
-
-        if len(request_site.need_service_queue) == 0:
-            print("Service queue is now empty: next step")
-            slot_dict = site.pending_action['slot_dict']
-            request_siteid = site.pending_action['request_siteid']
-            err = lmsctl.make_devices_ready(slot_dict, request_siteid, request_site.action_target)
-            if err:
-                notify(mqtt_client, err, request_siteid)
-        site.pending_action = dict()
-
-    elif site.pending_action and not data['result']:
-        request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
-        if not request_site:
-            site.pending_action = dict()
-            return
-        request_site.action_target = None
-        request_site.need_service_queue.remove(site.pending_action.get('device'))
-
-        text = f"Das Abspielprogramm konnte im Raum {site.room_name} nicht gestartet werden."
-        notify(mqtt_client, text, site.pending_action['request_siteid'])
-        site.pending_action = dict()
 
 
 def session_started_received(client, userdata, msg):

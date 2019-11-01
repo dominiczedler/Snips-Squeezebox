@@ -24,6 +24,7 @@ class Site:
         self.auto_pause = None
         self.default_device_name = None
         self.devices_dict = dict()
+        self.active_device = None
         self.pending_action = dict()
         self.need_connection_queue = list()
         self.need_service_queue = list()
@@ -292,6 +293,8 @@ class LMSController:
                     request_site.need_connection_queue.append(device)
                 if not device.player.connected:
                     request_site.need_service_queue.append(device)
+                else:
+                    site.active_device = device
 
         if request_site.need_connection_queue:
             for device in request_site.need_connection_queue:
@@ -365,28 +368,16 @@ class LMSController:
 
         if len(sites) > 1:
             if request_site in sites:
-                err, device = request_site.get_device(slot_dict, request_site.default_device_name)
-                if err:
-                    return err
-                player = device.player
+                player = request_site.active_device.player
                 sites.remove(request_site)
             else:
-                err, device = sites[0].get_device(slot_dict, sites[0].default_device_name)
-                if err:
-                    return err
-                player = device.player
+                player = sites[0].active_device.player
                 del sites[0]
+            player.unsync()
             for site in sites:
-                err, device = site.get_device(slot_dict, site.default_device_name)
-                if err:
-                    return err
-                player.sync(player=device.player)
+                player.sync(player=site.active_device.player)
         else:
-            site = sites[0]
-            err, device = site.get_device(slot_dict, site.default_device_name)
-            if err:
-                return err
-            player = device.player
+            player = sites[0].active_device.player
 
         query_params = list()
         artist = slot_dict.get('artist')
@@ -425,10 +416,8 @@ class LMSController:
         if err or not self.server.connected():
             return
         for site in sites:
-            err, device = site.get_device(slot_dict, site.default_device_name)
-            if err:
-                return
-            if device.player.connected:
+            device = site.active_device
+            if device and device.player.connected:
                 device.auto_pause = False
                 device.player.pause()
         return
@@ -438,10 +427,8 @@ class LMSController:
         if err or not self.server.connected():
             return
         for site in sites:
-            err, device = site.get_device(slot_dict, site.default_device_name)
-            if err:
-                return
-            if device.player.connected and device.player.mode in ["pause", "stop"]:
+            device = site.active_device
+            if device and device.player.connected and device.player.mode in ["pause", "stop"]:
                 device.auto_pause = False
                 device.player.play(1.1)
         return
@@ -451,10 +438,8 @@ class LMSController:
         if err or not self.server.connected():
             return
         for site in sites:
-            err, device = site.get_device(slot_dict, site.default_device_name)
-            if err:
-                return
-            if device.player.connected:
+            device = site.active_device
+            if device and device.player.connected:
                 if slot_dict.get('volume_absolute'):
                     device.player.volume = slot_dict.get('volume_absolute')
                 elif slot_dict.get('direction') == "lower":

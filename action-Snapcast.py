@@ -239,13 +239,19 @@ def msg_queue_restart(client, userdata, msg):
 
 def msg_podcast_latest(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err = lmsctl.podcast_latest(get_slots(data), data['siteId'])
+    slot_dict = get_slots(data)
+    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                                    target=lmsctl.podcast_latest,
+                                    args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
 
 
 def msg_radio_new(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    err = lmsctl.radio_new(get_slots(data), data['siteId'])
+    slot_dict = get_slots(data)
+    err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                                    target=lmsctl.radio_new,
+                                    args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
 
 

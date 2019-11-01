@@ -510,7 +510,7 @@ class LMSController:
         result = player.request(f"search items 0 10 item_id:{podcast_id}.0")
         if not result.get('count'):
             return "Es gibt keine Episoden von diesem Podcast."
-        found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('is_audio')]
+        found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('isaudio')]
         if not found_episodes:
             return "Es gibt keine Audio Episoden zu diesem Podcast."
         episode_id = found_episodes[0].get('id')  # TODO: Multiple episodes

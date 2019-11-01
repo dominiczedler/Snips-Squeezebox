@@ -461,3 +461,33 @@ class LMSController:
                 elif slot_dict.get('direction') == "highest":
                     device.player.volume = 100
         return
+
+    def queue_next(self, slot_dict, request_siteid):
+        err, sites = self.get_sites(request_siteid, slot_dict, single=True)
+        if err or not self.server.connected():
+            return
+        else:
+            site = sites[0]
+        device = site.active_device
+        if device and device.player.connected:
+            device.player.next()
+
+    def queue_previous(self, slot_dict, request_siteid):
+        err, sites = self.get_sites(request_siteid, slot_dict, single=True)
+        if err or not self.server.connected():
+            return
+        else:
+            site = sites[0]
+        device = site.active_device
+        if device and device.player.connected:
+            device.player.prev()
+
+    def queue_restart(self, slot_dict, request_siteid):
+        err, sites = self.get_sites(request_siteid, slot_dict, single=True)
+        if err or not self.server.connected():
+            return
+        else:
+            site = sites[0]
+        device = site.active_device
+        if device and device.player.connected:
+            device.player.playlist_restart()

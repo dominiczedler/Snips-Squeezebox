@@ -126,11 +126,15 @@ class LMSPlayer(LMSUtils):
 
     def next(self):
         """Play next item in playlist"""
-        self.request("playlist jump +1")
+        self.request("playlist index +1")
 
     def prev(self):
         """Play previous item in playlist"""
-        self.request("playlist jump -1")
+        self.request("playlist index -1")
+
+    def playlist_restart(self):
+        """Play previous item in playlist"""
+        self.request("playlist index 0")
 
     def mute(self):
         """Mute player"""

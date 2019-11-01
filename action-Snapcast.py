@@ -101,10 +101,10 @@ def msg_result_device_connect(client, userdata, msg):
             print("Connection queue is now empty: next step")
             slot_dict = site.pending_action['slot_dict']
             request_siteid = site.pending_action['request_siteid']
+            site.pending_action = dict()
             err = lmsctl.make_devices_ready(slot_dict, request_siteid)
             if err:
                 notify(mqtt_client, err, request_siteid)
-        site.pending_action = dict()
 
     elif site.pending_action and not data['result']:
         request_site = lmsctl.sites_dict.get(site.pending_action['request_siteid'])
@@ -206,7 +206,8 @@ def msg_music_new(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                                    target=lmsctl.new_music, args=(slot_dict, data['siteId']))
+                                    target=lmsctl.new_music,
+                                    args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'], err)
 
 
@@ -218,7 +219,10 @@ def msg_music_pause(client, userdata, msg):
 
 def msg_music_play(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    lmsctl.play_music(get_slots(data), data['siteId'])
+    slot_dict = get_slots(data)
+    lmsctl.make_devices_ready(slot_dict, data['siteId'],
+                              target=lmsctl.new_music,
+                              args=(slot_dict, data['siteId']))
     end_session(client, data['sessionId'])
 
 

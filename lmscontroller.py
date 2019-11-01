@@ -76,19 +76,20 @@ class LMSController:
         self.pending_actions = dict()
         self.current_status = dict()
 
-    def get_inject_operations(self, requested_types: str) -> (str, list):
+    def get_inject_operations(self, requested_type: str) -> (str, list):
         if not self.server.connected():
             err = "Die Namen konnten nicht gesammelt werden. Es besteht keine Verbindung zum Medien Server."
             return err, None
 
-        requested_types = [requested_types]  # TODO: Multiple types at the same time
-
-        if not requested_types:
+        if requested_type:
+            if requested_type == "music":
+                requested_types = ["album", "artist", "title", "playlist", "genre"]
+            elif requested_type == "favorite":
+                requested_types = ["radio", "podcast"]
+            else:
+                requested_types = [requested_type]
+        else:
             requested_types = ["device", "room", "area", "album", "artist", "title", "playlist", "genre"]
-        elif "music" in requested_types:
-            requested_types = ["album", "artist", "title", "playlist", "genre"]
-        elif "favorite" in requested_types:
-            requested_types = ["radio", "podcast"]
 
         operations = list()
         if "title" in requested_types:

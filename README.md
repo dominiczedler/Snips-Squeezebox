@@ -2,7 +2,7 @@
 
 An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server.
 
-## :construction: Work in progress :construction:
+### :construction: Work in progress :construction:
 
 ##### Table of Contents  
 [Features](#i-features)  
@@ -18,7 +18,7 @@ An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server
 
 - full multi-room support :house:
 - context-awareness: it detects what room you're in :speech_balloon:
-- listen radio and podcasts :radio:
+- listen to radio and podcasts :radio:
 - synchronize multiple players
 - bluetooth speakers and headphones support :headphones:
 

@@ -128,6 +128,10 @@ class LMSController:
                 operations.append(('addFromVanilla', {'squeezebox_podcasts': podcasts}))
         if "device" in requested_types:
             devices = self.get_site_names('devices')
+            nosite_devices = self.nosite_players_dict
+            for d in nosite_devices.keys():
+                if d not in devices:
+                    devices.append(d)
             if devices:
                 operations.append(('addFromVanilla', {'audio_devices': devices}))
         if "rooms" in requested_types:
@@ -266,6 +270,20 @@ class LMSController:
             else:
                 return None, [self.sites_dict[request_siteid]]
 
+    @property
+    def nosite_players_dict(self):
+        if self.server.connected:
+            players_dict = {player.ref: player for player in self.server.get_players() if player.connected}
+            for site_id in self.sites_dict:
+                site = self.sites_dict[site_id]
+                for device_mac in site.devices_dict:
+                    device = site.devices_dict[device_mac]
+                    if device.player.ref in players_dict:
+                        del players_dict[device.player.ref]
+            return {players_dict[ref].name: players_dict[ref] for ref in players_dict}
+        else:
+            return dict()
+
     def make_devices_ready(self, slots: dict, request_siteid: str, target: Callable = None, args: tuple = (),
                            sites: list = None, use_active_devices: bool = False):
         if not self.server.connected:
@@ -275,7 +293,13 @@ class LMSController:
         if not request_site:
             return "Dieser Raum hier wurde noch nicht konfiguriert."
 
-        if not sites:
+        device_value = slots.get('device')
+        if device_value and device_value != "alle" and device_value in self.nosite_players_dict:
+            player = self.nosite_players_dict.get(device_value)
+        else:
+            player = None
+
+        if not sites and not player:
             err, sites = self.get_sites(request_siteid, slots)
             if err:
                 return err
@@ -361,6 +385,11 @@ class LMSController:
             return result
 
     def get_player_and_sync(self, slot_dict, request_siteid):
+
+        device_value = slot_dict.get('device')
+        if device_value and device_value != "alle" and device_value in self.nosite_players_dict:
+            return None, self.nosite_players_dict.get(device_value)
+
         err, sites = self.get_sites(request_siteid, slot_dict)
         if err:
             return err, None

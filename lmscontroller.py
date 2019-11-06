@@ -431,7 +431,8 @@ class LMSController:
         if err:
             return err
         podcast_name = slot_dict.get('podcast')
-        print("PODCAST NAME: ", podcast_name, slot_dict)
+        if not podcast_name:
+            return "Es wurde kein Podcast Name gesagt."
 
         found_podcasts = list()
         count = self.server.request(params="favorites items").get('count')

@@ -460,7 +460,7 @@ class LMSController:
             result_type = "podcast"
             result = player.request(f"search items 0 30 search:{'+'.join(podcast_name.split(' '))}")
             if result.get('count'):
-                found_podcasts = [item_dict['id'] for item_dict in result.get('loop_loop')
+                found_podcasts = [item_dict for item_dict in result.get('loop_loop')
                                   if item_dict.get('hasitems')]
             if not found_podcasts:
                 return "Es gibt keinen solchen Podcast."

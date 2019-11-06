@@ -310,19 +310,20 @@ class LMSController:
             request_site.need_connection_queue = list()
             request_site.need_service_queue = list()
 
-            for site in sites:
-                if use_active_devices and site.active_device:
-                    device = site.active_device
-                else:
-                    err, device = site.get_device(slots, site.default_device_name)
-                    if err:
-                        return err
-                if device.bluetooth and not device.bluetooth['is_connected']:
-                    request_site.need_connection_queue.append(device)
-                if not device.player.connected:
-                    request_site.need_service_queue.append(device)
-                else:
-                    site.active_device = device
+            if sites:
+                for site in sites:
+                    if use_active_devices and site.active_device:
+                        device = site.active_device
+                    else:
+                        err, device = site.get_device(slots, site.default_device_name)
+                        if err:
+                            return err
+                    if device.bluetooth and not device.bluetooth['is_connected']:
+                        request_site.need_connection_queue.append(device)
+                    if not device.player.connected:
+                        request_site.need_service_queue.append(device)
+                    else:
+                        site.active_device = device
 
         if request_site.need_connection_queue:
             for device in request_site.need_connection_queue:

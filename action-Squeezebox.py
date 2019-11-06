@@ -36,8 +36,10 @@ def get_slots(data):
         for slot in data['slots']:
             if slot['value']['kind'] in ["InstantTime", "TimeInterval", "Duration"]:
                 slot_dict[slot['slotName']] = slot['value']
-            elif slot['value']['kind'] in ["Custom", "Number", "Ordinal"]:
+            elif slot['value']['kind'] in ["Custom"]:
                 slot_dict[slot['slotName']] = slot['value']['value']
+            elif slot['value']['kind'] in ["Number", "Ordinal"]:
+                slot_dict[slot['slotName']] = int(slot['value']['value'])
     except (KeyError, TypeError, ValueError):
         slot_dict = {}
     return slot_dict

@@ -38,6 +38,9 @@ def get_slots(data):
                 slot_dict[slot['slotName']] = slot['value']
             elif slot['value']['kind'] in ["Custom", "Number"]:
                 slot_dict[slot['slotName']] = slot['value']['value']
+            elif slot['value']['kind'] == "Ordinal":
+                numbers = [s for s in slot['value']['value'] if s.isdigit()]
+                slot_dict[slot['slotName']] = int("".join(map(str, numbers)))
     except (KeyError, TypeError, ValueError):
         slot_dict = {}
     return slot_dict

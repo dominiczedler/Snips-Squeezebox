@@ -75,6 +75,8 @@ class LMSController:
     def __init__(self, mqtt_client, lms_host, lms_port):
         self.mqtt_client = mqtt_client
         self.server = LMSTools.LMSServer(lms_host, lms_port)
+        # TODO: Username and password for server
+        #  https://github.com/johanpalmqvist/skill-squeezebox/blob/master/lms_client.py#L16
         self.sites_dict = dict()
         self.pending_actions = dict()
         self.current_status = dict()
@@ -429,21 +431,64 @@ class LMSController:
         if err:
             return err
         podcast_name = slot_dict.get('podcast')
-        result = player.request(f"search items 0 50 search:{'+'.join(podcast_name.split(' '))}")
-        if not result.get('count'):
-            return "Es gibt keinen solchen Podcast."
-        found_podcasts = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('hasitems')]
-        if not found_podcasts:
-            return "Es gibt nur Radios mit so einem Namen."
-        podcast_id = found_podcasts[0].get('id')
-        result = player.request(f"search items 0 50 item_id:{podcast_id}.0")
-        if not result.get('count'):
-            return "Es gibt keine Episoden von diesem Podcast."
-        found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('isaudio')]
-        if not found_episodes:
-            return "Es gibt keine Audio Episoden zu diesem Podcast."
-        episode_id = found_episodes[0].get('id')  # TODO: Multiple episodes
-        player.request(f"podcast playlist play item_id:{episode_id}")
+
+        found_podcasts = list()
+        count = self.server.request(params="favorites items").get('count')
+        if count:
+            favorite_dicts = self.server.request(params=f"favorites items 0 {count}")['loop_loop']
+            music_albums = self.get_music_albums()
+            music_artists = self.get_music_artists()
+            for favorite_dict in favorite_dicts:
+                name = favorite_dict['name']
+                if name not in found_podcasts and favorite_dict['hasitems'] \
+                        and name not in music_albums and name not in music_artists and name == podcast_name:
+                    found_podcasts.append(favorite_dict)
+                    break
+
+        if found_podcasts:
+            # Play podcast from favorites
+            result_type = "favorites"
+            podcast_id = found_podcasts[0].get('id')
+            result = player.request(f"favorites items 0 30 item_id:{podcast_id}.0")
+            if not result.get('count'):
+                return "Es gibt keine Episoden von diesem Podcast."
+            found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('isaudio')]
+            if not found_episodes:
+                return "Es gibt keine Audio Episoden zu diesem Podcast."
+        else:
+            # Search for podcast in the web
+            result_type = "podcast"
+            result = player.request(f"search items 0 30 search:{'+'.join(podcast_name.split(' '))}")
+            if result.get('count'):
+                found_podcasts = [item_dict['id'] for item_dict in result.get('loop_loop')
+                                  if item_dict.get('hasitems')]
+            if not found_podcasts:
+                return "Es gibt keinen solchen Podcast."
+
+            podcast_id = found_podcasts[0].get('id')
+            result = player.request(f"search items 0 50 item_id:{podcast_id}.0")
+            if not result.get('count'):
+                return "Es gibt keine Episoden von diesem Podcast."
+            found_episodes = [item_dict for item_dict in result.get('loop_loop') if item_dict.get('isaudio')]
+            if not found_episodes:
+                return "Es gibt keine Audio Episoden zu diesem Podcast."
+
+        if not slot_dict.get('index') and not slot_dict.get('count'):
+            episode_ids = [found_episodes[0].get('id')]
+        else:
+            index = slot_dict.get('index')
+            count = slot_dict.get('count')
+            if index and index > len(found_episodes) or count and count > len(found_episodes):
+                return "Es gibt nicht so viele Episoden in diesem Podcast."
+            if index:
+                episode_ids = [found_episodes[index - 1].get('id')]
+            else:
+                episode_ids = [episode.get('id') for episode in found_episodes[:count]]
+        for episode_id in episode_ids:
+            if episode_id == episode_ids[0]:
+                player.request(f"{result_type} playlist play item_id:{episode_id}")
+            else:
+                player.request(f"{result_type} playlist add item_id:{episode_id}")
 
     def radio(self, slot_dict, request_siteid):
         if not self.server.connected():
@@ -530,16 +575,15 @@ class LMSController:
             return err
         else:
             slave_site = slave_site[0]
-        result = self.make_devices_ready(slot_dict, request_siteid, target=self.player_sync_step2,
-                                         args=(master_site, slave_site,), sites=[master_site, slave_site],
-                                         use_active_devices=True)
-        return result
+        self.make_devices_ready(slot_dict, request_siteid, target=self.player_sync_step2,
+                                args=(master_site, slave_site,), sites=[master_site, slave_site],
+                                use_active_devices=True)
+        return None
 
     @staticmethod
     def player_sync_step2(master_site, slave_site):
         master_device = master_site.active_device
         master_device.player.sync(player=slave_site.active_device.player)
-        return "Die Synchronisation war erfolgreich."
 
     def player_info(self, slot_dict, request_siteid):
         if not self.server.connected():

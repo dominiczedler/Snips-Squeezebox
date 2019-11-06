@@ -62,3 +62,9 @@ see what you can change.
 
 In the Snips console or manually in the file `/var/lib/snips/skills/Snips-Wecker/config.ini` you can change
 some parameters that influence the behaviour of the alarm clock app:
+
+## VI. Coming soon
+
+- Append podcasts to your queue
+- Play podcasts on a specific device
+- Use any squeezebox player

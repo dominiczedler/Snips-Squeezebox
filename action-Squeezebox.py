@@ -47,9 +47,12 @@ def get_slots(data):
 
 def msg_result_site_info(*args):
     data = json.loads(args[2].payload.decode("utf-8"))
+    if lmsctl.sites_dict.get(data['site_id']):
+        print("YEEEEEEEEEEEEESSSSSSSSSSSS", lmsctl.sites_dict.get(data['site_id']).active_device.mac)
     if not lmsctl.sites_dict.get(data['site_id']):
         lmsctl.sites_dict[data['site_id']] = lmscontroller.Site()
     lmsctl.sites_dict[data['site_id']].update(data, lmsctl.server)
+    print("YEEEEEEEEEEEEESSSSSSSSSSSS", lmsctl.sites_dict.get(data['site_id']).active_device.mac)
 
 
 def msg_inject_names(client, userdata, msg):
@@ -124,7 +127,6 @@ def msg_result_device_disconnect(client, userdata, msg):
     device = found[0]
     device.bluetooth['is_connected'] = False
     if device == site.active_device:
-        print("YEEEEEEEEEEEEESSSSSSSSSSSS", device.mac, site.active_device.mac)
         site.active_device = None
 
 

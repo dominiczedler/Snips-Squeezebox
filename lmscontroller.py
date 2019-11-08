@@ -547,6 +547,7 @@ class LMSController:
             if device and device.player.connected:
                 device.auto_pause = False
                 device.player.pause()
+                print("PAAAUSSSEE")
         return
 
     def player_play(self, slot_dict, request_siteid):

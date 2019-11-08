@@ -124,6 +124,7 @@ def msg_result_device_disconnect(client, userdata, msg):
     device = found[0]
     device.bluetooth['is_connected'] = False
     if device == site.active_device:
+        print("YEEEEEEEEEEEEESSSSSSSSSSSS", device.mac, site.active_device.mac)
         site.active_device = None
 
 

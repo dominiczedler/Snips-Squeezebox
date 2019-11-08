@@ -41,7 +41,7 @@ class Site:
         self.default_device_name = data['default_device']
 
         for device_dict in data['devices']:
-            if not self.devices_dict.get('squeezelite_mac'):
+            if not self.devices_dict.get(device_dict['squeezelite_mac']):
                 player = LMSTools.LMSPlayer(device_dict['squeezelite_mac'], server, False, device_dict['name'])
                 self.devices_dict[device_dict['squeezelite_mac']] = Device(player)
 

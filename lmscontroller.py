@@ -72,14 +72,13 @@ class Site:
 
 
 class LMSController:
-    def __init__(self, mqtt_client, lms_host, lms_port):
+    def __init__(self, mqtt_client, lms_host, lms_port, lms_username, lms_password):
         self.mqtt_client = mqtt_client
-        self.server = LMSTools.LMSServer(lms_host, lms_port)
-        # TODO: Username and password for server
-        #  https://github.com/johanpalmqvist/skill-squeezebox/blob/master/lms_client.py#L16
+        self.server = LMSTools.LMSServer(lms_host, lms_port, lms_username, lms_password)
         self.sites_dict = dict()
         self.pending_actions = dict()
         self.current_status = dict()
+        self.inject_siteids_dict = dict()
 
     def get_inject_operations(self, requested_type: str) -> (str, list):
         if not self.server.connected():
@@ -293,13 +292,7 @@ class LMSController:
         if not request_site:
             return "Dieser Raum hier wurde noch nicht konfiguriert."
 
-        device_value = slots.get('device')
-        if device_value and device_value != "alle" and device_value in self.nosite_players_dict:
-            player = self.nosite_players_dict.get(device_value)
-        else:
-            player = None
-
-        if not sites and not player:
+        if not sites:
             err, sites = self.get_sites(request_siteid, slots)
             if err:
                 return err

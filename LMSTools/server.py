@@ -20,13 +20,12 @@ class LMSServer(object):
     Provides access via JSON interface. As the class uses the JSON interface, no active connections are maintained.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 9000):
+    def __init__(self, host: str = "localhost", port: int = 9000, username: str = "", password: str = ""):
         self.host = host
         self.port = port
         self._version = None
         self.id = 1
-        self.web = "http://{h}:{p}/".format(h=host, p=port)
-        self.url = "http://{h}:{p}/jsonrpc.js".format(h=host, p=port)
+        self.url = f"http://{username}:{password}@{host}:{port}/jsonrpc.js"
 
     def request(self, player: str = "-", params: Union[str, list] = None) -> dict:
         """

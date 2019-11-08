@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import paho.mqtt.client as mqtt
 import json
@@ -7,6 +6,7 @@ import toml
 import configparser
 import uuid
 import lmscontroller
+import re
 
 
 USERNAME_INTENTS = "domi"
@@ -45,13 +45,8 @@ def get_slots(data):
     return slot_dict
 
 
-class Squeezebox:
-    def __init__(self):
-        self.inject_requestids = dict()
-
-
-def msg_result_site_info(client, userdata, msg):
-    data = json.loads(msg.payload.decode("utf-8"))
+def msg_result_site_info(*args):
+    data = json.loads(args[2].payload.decode("utf-8"))
     if not lmsctl.sites_dict.get(data['site_id']):
         lmsctl.sites_dict[data['site_id']] = lmscontroller.Site()
     lmsctl.sites_dict[data['site_id']].update(data, lmsctl.server)
@@ -67,16 +62,16 @@ def msg_inject_names(client, userdata, msg):
         return
 
     request_id = str(uuid.uuid4())
-    squeezebox.inject_requestids[request_id] = data['siteId']
+    lmsctl.inject_siteids_dict[request_id] = data['siteId']
     payload = {'id': request_id, 'operations': operations}
     mqtt_client.publish('hermes/injection/perform', json.dumps(payload))
 
 
 def msg_injection_complete(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
-    if data['requestId'] in squeezebox.inject_requestids:
-        site_id = squeezebox.inject_requestids[data['requestId']]
-        del squeezebox.inject_requestids[data['requestId']]
+    if data['requestId'] in lmsctl.inject_siteids_dict:
+        site_id = lmsctl.inject_siteids_dict[data['requestId']]
+        del lmsctl.inject_siteids_dict[data['requestId']]
         notify(client, "Das Einlesen wurde erfolgreich abgeschlossen.", site_id)
 
 
@@ -260,13 +255,13 @@ def msg_podcast(client, userdata, msg):
     end_session(client, data['sessionId'], err)
 
 
-def msg_radio(client, userdata, msg):
-    data = json.loads(msg.payload.decode("utf-8"))
+def msg_radio(*args):
+    data = json.loads(args[2].payload.decode("utf-8"))
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
                                     target=lmsctl.radio,
                                     args=(slot_dict, data['siteId']))
-    end_session(client, data['sessionId'], err)
+    end_session(args[0], data['sessionId'], err)
 
 
 def end_session(client, session_id, text=None):
@@ -300,10 +295,10 @@ def dialogue(client, session_id, text, intent_filter, custom_data=None):
     client.publish('hermes/dialogueManager/continueSession', json.dumps(data))
 
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(*args):
+    client = args[0]
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxInjectNames'), msg_inject_names)
     client.message_callback_add('hermes/injection/complete', msg_injection_complete)
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxInjectNames'))
     client.subscribe('hermes/injection/complete')
 
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerPause'), msg_player_pause)
@@ -311,25 +306,13 @@ def on_connect(client, userdata, flags, rc):
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'), msg_player_volume)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerSync'), msg_player_sync)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPlayerInfo'), msg_player_info)
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPause'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerPlay'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerVolume'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerSync'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPlayerInfo'))
-
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueNext'), msg_queue_next)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'), msg_queue_previous)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxQueueRestart'), msg_queue_restart)
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueNext'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueuePrevious'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxQueueRestart'))
-
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxMusic'), msg_music)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxPodcast'), msg_podcast)
     client.message_callback_add('hermes/intent/' + add_prefix('squeezeboxRadio'), msg_radio)
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxMusic'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxPodcast'))
-    client.subscribe('hermes/intent/' + add_prefix('squeezeboxRadio'))
+    client.subscribe('hermes/intent/#')
 
     client.message_callback_add('squeezebox/answer/siteInfo', msg_result_site_info)
     client.message_callback_add('squeezebox/answer/serviceStart', msg_result_service_start)
@@ -347,6 +330,17 @@ def on_connect(client, userdata, flags, rc):
 
 
 if __name__ == "__main__":
+    mqtt_client = mqtt.Client()
+
+    # Set up LMS controller module
+    config = read_configuration_file('config.ini')
+    lms_api_location = re.search(r'[^:]+:\d+', config['secret'].get('lms_api_location'))
+    lms_host, lms_port = lms_api_location[0].split(':') if lms_api_location else ["localhost", 9000]
+    lms_username = config['secret'].get('lms_username')
+    lms_password = config['secret'].get('lms_password')
+    lmsctl = lmscontroller.LMSController(mqtt_client, lms_host, lms_port, lms_username, lms_password)
+
+    # Set up MQTT client
     snips_config = toml.load('/etc/snips.toml')
     if 'mqtt' in snips_config['snips-common'].keys():
         MQTT_BROKER_ADDRESS = snips_config['snips-common']['mqtt']
@@ -354,29 +348,8 @@ if __name__ == "__main__":
         MQTT_USERNAME = snips_config['snips-common']['mqtt_username']
     if 'mqtt_password' in snips_config['snips-common'].keys():
         MQTT_PASSWORD = snips_config['snips-common']['mqtt_password']
-
-    config = read_configuration_file('config.ini')
-
-    lms_api_location = config['secret'].get('lms_api_location')
-    if lms_api_location:
-        lms_location = lms_api_location.split(":")
-        lms_host = lms_location[0]
-        if len(lms_location) == 2:
-            lms_port = int(lms_location[1])
-        else:
-            lms_port = 9000
-    else:
-        lms_host = "localhost"
-        lms_port = 9000
-
-    squeezebox = Squeezebox()
-
-    mqtt_client = mqtt.Client()
-
-    lmsctl = lmscontroller.LMSController(mqtt_client, lms_host, lms_port)
-
-    mqtt_client.on_connect = on_connect
     mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+    mqtt_client.on_connect = on_connect
     mqtt_client.connect(MQTT_BROKER_ADDRESS.split(":")[0], int(MQTT_BROKER_ADDRESS.split(":")[1]))
     mqtt_client.publish('squeezebox/request/allSites/siteInfo')
     mqtt_client.loop_forever()

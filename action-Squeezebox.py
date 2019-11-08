@@ -185,8 +185,10 @@ def session_ended_received(client, userdata, msg):
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
+        print(device_mac)
         if d.player.connected and d.player.mode == "pause" and d.auto_pause:
             d.auto_pause = False
+            print("PLAAAAYYY")
             d.player.play(1.1)
 
 

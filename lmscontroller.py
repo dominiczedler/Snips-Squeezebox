@@ -548,6 +548,7 @@ class LMSController:
                 device.auto_pause = False
                 device.player.pause()
                 print("PAAAUSSSEE")
+                print(self.sites_dict[device.site_id].devices_dict[device.mac].auto_pause)
         return
 
     def player_play(self, slot_dict, request_siteid):

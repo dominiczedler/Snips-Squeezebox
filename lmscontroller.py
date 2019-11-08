@@ -542,6 +542,8 @@ class LMSController:
             return
         for site in sites:
             device = site.active_device
+            if device:
+                print(device.mac)
             if device and device.player.connected:
                 device.auto_pause = False
                 device.player.pause()

@@ -195,10 +195,8 @@ def msg_player_pause(client, userdata, msg):
 def msg_player_play(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
     slot_dict = get_slots(data)
-    lmsctl.make_devices_ready(slot_dict, data['siteId'],
-                              target=lmsctl.player_play,
-                              args=(slot_dict, data['siteId']),
-                              use_active_devices=True)
+    lmsctl.make_devices_ready(slot_dict, data['siteId'], target=lmsctl.player_play,
+                              args=(slot_dict, data['siteId']), use_active_devices=True)
     end_session(client, data['sessionId'])
 
 

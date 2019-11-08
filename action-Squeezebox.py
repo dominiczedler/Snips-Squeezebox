@@ -47,13 +47,9 @@ def get_slots(data):
 
 def msg_result_site_info(*args):
     data = json.loads(args[2].payload.decode("utf-8"))
-    if lmsctl.sites_dict.get(data['site_id']) and lmsctl.sites_dict.get(data['site_id']).active_device:
-        print("YEEEEEEEEEEEEESSSSSSSSSSSS", lmsctl.sites_dict.get(data['site_id']).active_device.mac)
     if not lmsctl.sites_dict.get(data['site_id']):
         lmsctl.sites_dict[data['site_id']] = lmscontroller.Site()
     lmsctl.sites_dict[data['site_id']].update(data, lmsctl.server)
-    if lmsctl.sites_dict.get(data['site_id']).active_device:
-        print("YEEEEEEEEEEEEESSSSSSSSSSSS", lmsctl.sites_dict.get(data['site_id']).active_device.mac)
 
 
 def msg_inject_names(client, userdata, msg):
@@ -185,10 +181,8 @@ def session_ended_received(client, userdata, msg):
         return
     for device_mac in site.devices_dict:
         d = site.devices_dict[device_mac]
-        print(device_mac)
         if d.player.connected and d.player.mode == "pause" and d.auto_pause:
             d.auto_pause = False
-            print("PLAAAAYYY")
             d.player.play(1.1)
 
 

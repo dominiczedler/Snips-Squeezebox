@@ -542,13 +542,9 @@ class LMSController:
             return
         for site in sites:
             device = site.active_device
-            if device:
-                print(device.mac)
             if device and device.player.connected:
                 device.auto_pause = False
                 device.player.pause()
-                print("PAAAUSSSEE")
-                print(self.sites_dict[device.site_id].devices_dict[device.mac].auto_pause)
         return
 
     def player_play(self, slot_dict, request_siteid):

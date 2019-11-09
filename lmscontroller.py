@@ -313,6 +313,7 @@ class LMSController:
                             return err
                         if site.active_device and site.active_device != device:
                             site.active_device.player.pause()
+                            site.active_device.auto_pause = False
                     if device.bluetooth and not device.bluetooth['is_connected']:
                         request_site.need_connection_queue.append(device)
                     if not device.player.connected:

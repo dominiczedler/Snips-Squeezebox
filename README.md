@@ -22,6 +22,7 @@ An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server
 - synchronize multiple players
 - bluetooth speakers and headphones support :headphones:
 
+![Example Device Setup](./resources/Device%20Setup.png)
 
 ## II. Installation
 
@@ -40,8 +41,6 @@ your *German* assistant.
 see what you can change.
 
 3. In the console scroll down to the parameters section.
-
-    ![img](resources/ConsoleParameters.png)
 
     Now you may change some parameter values of the alarmclock.
     

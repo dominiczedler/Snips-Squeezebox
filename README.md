@@ -22,7 +22,7 @@ An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server
 - synchronize multiple players
 - bluetooth speakers and headphones support :headphones:
 
-![Example Device Setup](./resources/Device%20Setup.svg)
+![Example Device Setup](./resources/Device%20Setup.png?raw=true "Example Device Setup")
 
 ## II. Installation
 

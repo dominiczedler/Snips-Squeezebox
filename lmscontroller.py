@@ -298,14 +298,12 @@ class LMSController:
                 return err
 
         if not request_site.action_target:
-            request_site.action_target = target
-            request_site.action_target_args = args
             request_site.need_connection_queue = list()
             request_site.need_service_queue = list()
 
             if sites:
                 for site in sites:
-                    if use_active_devices and site.active_device:
+                    if use_active_devices and site.active_device and not slots.get('device'):
                         device = site.active_device
                     else:
                         err, device = site.get_device(slots, site.default_device_name)
@@ -316,10 +314,16 @@ class LMSController:
                             site.active_device.auto_pause = False
                     if device.bluetooth and not device.bluetooth['is_connected']:
                         request_site.need_connection_queue.append(device)
-                    if not device.player.connected:
+                    # if not device.player.connected and device.soundcard:
+                    if device.soundcard:
                         request_site.need_service_queue.append(device)
+                    elif not device.player.connected and not device.soundcard:
+                        return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."
                     else:
                         site.active_device = device
+
+            request_site.action_target = target
+            request_site.action_target_args = args
 
         if request_site.need_connection_queue:
             for device in request_site.need_connection_queue:
@@ -599,8 +603,10 @@ class LMSController:
         else:
             master_site = master_site[0]
         err, slave_site = self.get_sites(request_siteid, slot_dict, single=True, room_slot='slave')
-        if err or not self.server.connected():
+        if err:
             return err
+        elif not self.server.connected():
+            return "Der Server kann nicht erreicht werden."
         else:
             slave_site = slave_site[0]
         self.make_devices_ready(slot_dict, request_siteid, target=self.player_sync_step2,

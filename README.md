@@ -20,8 +20,10 @@ An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server
 - If you don't mention the room, the system recognizes what room you're in :speech_balloon:
 - Pauses automatically with the wakeword and plays after the Snips session :ear:
 - Listen to any radio station and podcast :radio:
-- synchronize multiple players :hear_no_evil:
-- bluetooth speakers and headphones support :headphones:
+- Synchronize multiple players :hear_no_evil:
+- Bluetooth speakers and headphones support :headphones:
+
+### Example Device Setup:
 
 ![Example Device Setup](./resources/Device%20Setup.png?raw=true "Example Device Setup")
 

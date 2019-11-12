@@ -314,8 +314,8 @@ class LMSController:
                             site.active_device.auto_pause = False
                     if device.bluetooth and not device.bluetooth['is_connected']:
                         request_site.need_connection_queue.append(device)
-                    # if not device.player.connected and device.soundcard:
-                    if device.soundcard:
+                    # if device.soundcard:
+                    if not device.player.connected and device.soundcard:
                         request_site.need_service_queue.append(device)
                     elif not device.player.connected and not device.soundcard:
                         return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."

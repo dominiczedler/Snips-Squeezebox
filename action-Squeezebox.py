@@ -236,8 +236,18 @@ def msg_queue_restart(client, userdata, msg):
     end_session(client, data['sessionId'])
 
 
+def no_autostart_after_session(site_id):
+    site = lmsctl.sites_dict.get(site_id)
+    if site and site.auto_pause:
+        for device_mac in site.devices_dict:
+            d = site.devices_dict[device_mac]
+            if d.auto_pause:
+                d.auto_pause = False
+
+
 def msg_music(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
+    no_autostart_after_session(data['siteId'])
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
                                     target=lmsctl.music,
@@ -247,6 +257,7 @@ def msg_music(client, userdata, msg):
 
 def msg_podcast(client, userdata, msg):
     data = json.loads(msg.payload.decode("utf-8"))
+    no_autostart_after_session(data['siteId'])
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
                                     target=lmsctl.podcast,
@@ -256,6 +267,7 @@ def msg_podcast(client, userdata, msg):
 
 def msg_radio(*args):
     data = json.loads(args[2].payload.decode("utf-8"))
+    no_autostart_after_session(data['siteId'])
     slot_dict = get_slots(data)
     err = lmsctl.make_devices_ready(slot_dict, data['siteId'],
                                     target=lmsctl.radio,

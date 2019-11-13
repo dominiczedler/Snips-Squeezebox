@@ -243,31 +243,47 @@ class LMSController:
         return all_names
 
     def get_sites(self, request_siteid, slot_dict=None, single=False, room_slot='room'):
-        # TODO: Look at area slot
-        if slot_dict and slot_dict.get(room_slot):
-            room_slot_value = slot_dict.get(room_slot)
-            if room_slot_value == "hier":
-                if not self.sites_dict.get(request_siteid):
-                    return "Dieser Raum hier wurde noch nicht konfiguriert.", None
-                else:
-                    return None, [self.sites_dict[request_siteid]]
-            elif room_slot_value == "alle":
-                if not single:
-                    return None, [self.sites_dict[site_id] for site_id in self.sites_dict]
-                else:
-                    return "Diese Funktion gibt es nicht.", None
-            else:
-                dict_rooms = {self.sites_dict[siteid].room_name: self.sites_dict[siteid]
-                              for siteid in self.sites_dict}
-                if room_slot_value not in dict_rooms:
-                    return f"Der Raum {room_slot_value} wurde noch nicht konfiguriert.", None
-                else:
-                    return None, [dict_rooms[room_slot_value]]
+        if not slot_dict or not slot_dict.get(room_slot):
+            room_slot_value = "hier"
         else:
-            if not self.sites_dict.get(request_siteid):
-                return "Dieser Raum hier wurde noch nicht konfiguriert.", None
-            else:
-                return None, [self.sites_dict[request_siteid]]
+            room_slot_value = slot_dict.get(room_slot)
+
+        if room_slot_value == "hier" and self.sites_dict.get(request_siteid):
+            sites = [self.sites_dict[request_siteid]]
+        elif room_slot_value == "hier" and not self.sites_dict.get(request_siteid):
+            sites = []
+        elif room_slot_value == "alle":
+            sites = [self.sites_dict[siteid] for siteid in self.sites_dict]
+        else:
+            sites = [self.sites_dict[siteid] for siteid in self.sites_dict
+                     if self.sites_dict[siteid].room_name == room_slot_value]
+
+        if not sites and room_slot_value == "alle":
+            return "Es wurden noch keine Räume konfiguriert.", None
+        elif not sites and room_slot_value != "alle":
+            return f"Der Raum {room_slot_value} wurde noch nicht konfiguriert.", None
+        if single and len(sites) > 1:
+            return "Für diese Funktion darf nur ein einziger Raum genannt werden.", None
+
+        if not slot_dict or not slot_dict.get('area'):
+            area_slot_value = "in diesem Bereich"
+        else:
+            area_slot_value = slot_dict.get('area')
+
+        if area_slot_value == "in diesem Bereich" and self.sites_dict.get(request_siteid):
+            sites = [site for site in sites if site.area == self.sites_dict[request_siteid].area]
+        elif area_slot_value == "in diesem Bereich" and not self.sites_dict.get(request_siteid):
+            return "Der Raum hier wurde noch nicht konfiguriert.", None
+        elif area_slot_value == "in allen Bereichen" and not slot_dict.get(room_slot):
+            sites = [self.sites_dict[siteid] for siteid in self.sites_dict]
+        elif not slot_dict.get(room_slot):
+            sites = [self.sites_dict[siteid] for siteid in self.sites_dict
+                     if self.sites_dict[siteid].area == area_slot_value]
+        else:
+            sites = [site for site in sites if site.area == self.sites_dict[site.site_id].area]
+        if not sites:
+            return "Diese Auswahl an Räumen existiert nicht.", None
+        return None, sites
 
     @property
     def nosite_players_dict(self):

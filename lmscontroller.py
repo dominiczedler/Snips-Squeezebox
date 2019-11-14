@@ -54,22 +54,6 @@ class Site:
             device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
 
-    def get_device(self, slot_dict, default_device):
-        if slot_dict.get('device'):
-            if slot_dict.get('device') == "alle":
-                return f"Es geht nur ein Gerät pro Raum.", None
-            else:
-                found = [self.devices_dict[mac] for mac in self.devices_dict
-                         if slot_dict['device'] in self.devices_dict[mac].names_list]
-        else:
-            found = [self.devices_dict[mac] for mac in self.devices_dict
-                     if default_device in self.devices_dict[mac].names_list]
-
-        if not found:
-            return f"Dieses Gerät gibt es im Raum {self.room_name} nicht.", None
-        else:
-            return None, found[0]
-
 
 class LMSController:
     def __init__(self, mqtt_client, lms_host, lms_port, lms_username, lms_password):
@@ -320,24 +304,43 @@ class LMSController:
             if sites:
                 for site in sites:
                     if use_active_devices and site.active_device and not slots.get('device'):
+                        # device is the current active device of site if there is any
                         device = site.active_device
                     else:
-                        err, device = site.get_device(slots, site.default_device_name)
-                        if err:
-                            return err
+                        if slots.get('device') == "alle":
+                            return "Es geht nur ein Gerät pro Raum."
+                        elif slots.get('device'):
+                            device_slot_value = slots['device']
+                        else:
+                            device_slot_value = site.default_device_name
+                        found = [site.devices_dict[mac] for mac in site.devices_dict
+                                 if device_slot_value in site.devices_dict[mac].names_list]
+                        if not found:
+                            return f"Dieses Gerät gibt es im Raum {site.room_name} nicht."
+                        device = found[0]
+
                         if site.active_device and site.active_device != device:
                             site.active_device.player.pause()
                             site.active_device.auto_pause = False
+
+                    # Check bluetooth connection if device is bluetooth device
                     if device.bluetooth and not device.bluetooth['is_connected']:
                         request_site.need_connection_queue.append(device)
-                    # if device.soundcard:
-                    if not device.player.connected and device.soundcard:
-                        request_site.need_service_queue.append(device)
-                    elif not device.player.connected and not device.soundcard:
-                        return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."
-                    else:
-                        site.active_device = device
 
+                    # Check LMSplayer connection
+                    if device.player.connected:
+                        # Set active device of site to that device
+                        site.active_device = device
+                    else:
+                        if device.soundcard:
+                            # If device has ALSA soundcard, append it to the squeezelite_start queue
+                            # The active device of site will be set after connecting successfully
+                            request_site.need_service_queue.append(device)
+                        else:
+                            return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."
+
+            # Set action target function which will be called if bluetooth
+            # connection queue and squeezelite_start queue are empty
             request_site.action_target = target
             request_site.action_target_args = args
 

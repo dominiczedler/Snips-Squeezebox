@@ -270,6 +270,11 @@ class LMSController:
 
     @property
     def nosite_players_dict(self):
+        """
+        Get the LMSplayers which are not configured in a site.
+        :rtype: dict
+        :return: dictionary of on-the-fly LMSplayer objects
+        """
         if self.server.connected:
             players_dict = {player.ref: player for player in self.server.get_players() if player.connected}
             for site_id in self.sites_dict:
@@ -286,6 +291,16 @@ class LMSController:
 
     def make_devices_ready(self, slots: dict, request_siteid: str, target: Callable = None, args: tuple = (),
                            sites: list = None):
+        """
+        Prepare devices for playing. Connect bluetooth devices and start squeezelite
+        if necessary with queues. Then call the target function if given.
+        :param slots: Slot dictionary from Snips
+        :param request_siteid: siteId of the request site from Snips
+        :param target: Target function which should be called after successfull setup
+        :param args: Arguments which the target function will be called with
+        :param sites: Optional list of sites. Useful for synchronisation
+        :return: errors or result as str
+        """
         if not self.server.connected:
             return "Es konnte keine Verbindung zum Medienserver hergestellt werden."
 

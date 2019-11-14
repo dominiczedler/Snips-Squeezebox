@@ -68,4 +68,3 @@ some parameters that influence the behaviour of the alarm clock app:
 ## VI. Coming soon
 
 - Append podcasts to your queue
-- Use any squeezebox player

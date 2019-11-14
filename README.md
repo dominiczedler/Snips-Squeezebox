@@ -68,3 +68,4 @@ some parameters that influence the behaviour of the alarm clock app:
 ## VI. Coming soon
 
 - Append podcasts to your queue
+- Append radio stations to your queue

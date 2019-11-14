@@ -284,7 +284,7 @@ class LMSController:
             return dict()
 
     def make_devices_ready(self, slots: dict, request_siteid: str, target: Callable = None, args: tuple = (),
-                           sites: list = None, use_active_devices: bool = False):
+                           sites: list = None):
         if not self.server.connected:
             return "Es konnte keine Verbindung zum Musik Server hergestellt werden."
 
@@ -303,7 +303,7 @@ class LMSController:
 
             if sites:
                 for site in sites:
-                    if use_active_devices and site.active_device and not slots.get('device'):
+                    if site.active_device and not slots.get('device'):
                         # device is the current active device of site if there is any
                         device = site.active_device
                     else:
@@ -629,8 +629,7 @@ class LMSController:
         else:
             slave_site = slave_site[0]
         self.make_devices_ready(slot_dict, request_siteid, target=self.player_sync_step2,
-                                args=(master_site, slave_site,), sites=[master_site, slave_site],
-                                use_active_devices=True)
+                                args=(master_site, slave_site,), sites=[master_site, slave_site])
         return None
 
     @staticmethod

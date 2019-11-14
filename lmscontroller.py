@@ -440,8 +440,8 @@ class LMSController:
     def get_player_and_sync(self, slot_dict, request_siteid):
         """
         Returns one LMSplayer object and syncs this player to others if in slots
-        :param slot_dict:
-        :param request_siteid:
+        :param slot_dict: Slot dictionary from Snips
+        :param request_siteid: siteId of the request site from Snips
         :return: error, player
         """
         err, sites = self.get_sites(request_siteid, slot_dict)

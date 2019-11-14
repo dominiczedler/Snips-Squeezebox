@@ -7,12 +7,11 @@ from typing import Callable
 
 class Device:
     def __init__(self, player):
-        self.name = str()
+        self.name = player.name
         self.site_id = str()
-        self.names_list = list()
+        self.names_list = [player.name]
         self.synonyms = list()
         self.bluetooth = dict()
-        self.mac = str()
         self.soundcard = str()
         self.player = player
         self.auto_pause = False
@@ -51,7 +50,6 @@ class Site:
             device.names_list = device_dict['names_list']
             device.synonyms = device_dict['synonyms']
             device.bluetooth = device_dict['bluetooth']
-            device.mac = device_dict['squeezelite_mac']
             device.soundcard = device_dict['soundcard']
 
 
@@ -316,8 +314,15 @@ class LMSController:
                         found = [site.devices_dict[mac] for mac in site.devices_dict
                                  if device_slot_value in site.devices_dict[mac].names_list]
                         if not found:
-                            return f"Dieses Gerät gibt es im Raum {site.room_name} nicht."
-                        device = found[0]
+                            player = self.nosite_players_dict.get(device_slot_value)
+                            if player:
+                                device = Device(player)
+                                device.site_id = site.site_id
+                                site.devices_dict[player.ref] = device
+                            else:
+                                return f"Dieses Gerät gibt es im Raum {site.room_name} nicht."
+                        else:
+                            device = found[0]
 
                         if site.active_device and site.active_device != device:
                             site.active_device.player.pause()
@@ -387,7 +392,7 @@ class LMSController:
 
                 payload = {  # information for squeezelite service
                     'server': self.server.host,
-                    'squeeze_mac': device.mac,
+                    'squeeze_mac': device.player.ref,
                     'soundcard': device.soundcard,
                     'player_name': client_name,
                     'device_name': device.name,

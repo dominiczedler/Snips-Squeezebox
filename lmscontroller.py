@@ -352,6 +352,7 @@ class LMSController:
                             if device.on_the_fly:
                                 # Delete disconnected on-the-fly LMSplayer and its device from site
                                 del site.devices_dict[device.player.ref]
+                                site.active_device = None
                                 if len(sites) > 1:
                                     continue
                             return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."

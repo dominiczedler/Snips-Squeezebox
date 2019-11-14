@@ -15,6 +15,7 @@ class Device:
         self.soundcard = str()
         self.player = player
         self.auto_pause = False
+        self.on_the_fly = False
 
 
 class Site:
@@ -316,8 +317,11 @@ class LMSController:
                         if not found:
                             player = self.nosite_players_dict.get(device_slot_value)
                             if player:
+                                # If LMSplayer with this name exists, add on-the-fly device to site
+                                # It will be deleted if it is needed again but disconnected
                                 device = Device(player)
                                 device.site_id = site.site_id
+                                device.on_the_fly = True
                                 site.devices_dict[player.ref] = device
                             else:
                                 return f"Dieses Gerät gibt es im Raum {site.room_name} nicht."
@@ -342,6 +346,11 @@ class LMSController:
                             # The active device of site will be set after connecting successfully
                             request_site.need_service_queue.append(device)
                         else:
+                            if device.on_the_fly:
+                                # Delete disconnected on-the-fly LMSplayer and its device from site
+                                del site.devices_dict[device.player.ref]
+                                if len(sites) > 1:
+                                    continue
                             return f"Das Gerät {device.name} ist nicht mit dem Medienserver verbunden."
 
             # Set action target function which will be called if bluetooth
@@ -419,13 +428,11 @@ class LMSController:
         if err:
             return err, None
 
-        err, request_site = self.get_sites(request_siteid)
-        if err:
-            return err, None
-        else:
-            request_site = request_site[0]
-
         if len(sites) > 1:
+            err, request_site = self.get_sites(request_siteid)
+            if err:
+                return err, None
+            request_site = request_site[0]
             if request_site in sites:
                 player = request_site.active_device.player
                 sites.remove(request_site)

@@ -278,9 +278,11 @@ class LMSController:
                     device = site.devices_dict[device_mac]
                     if device.player.ref in players_dict:
                         del players_dict[device.player.ref]
-            return {players_dict[ref].name: players_dict[ref] for ref in players_dict}
+            players = {players_dict[ref].name: players_dict[ref] for ref in players_dict}
         else:
-            return dict()
+            players = dict()
+        print("Found on-the-fly players: ", str(players.keys()))
+        return players
 
     def make_devices_ready(self, slots: dict, request_siteid: str, target: Callable = None, args: tuple = (),
                            sites: list = None):
@@ -301,6 +303,7 @@ class LMSController:
             request_site.need_service_queue = list()
 
             if sites:
+                nosite_players = self.nosite_players_dict
                 for site in sites:
                     if site.active_device and not slots.get('device'):
                         # device is the current active device of site if there is any and slot is filled
@@ -315,7 +318,7 @@ class LMSController:
                         found = [site.devices_dict[mac] for mac in site.devices_dict
                                  if device_slot_value in site.devices_dict[mac].names_list]
                         if not found:
-                            player = self.nosite_players_dict.get(device_slot_value)
+                            player = nosite_players.get(device_slot_value)
                             if player:
                                 # If LMSplayer with this name exists, add on-the-fly device to site
                                 # It will be deleted if it is needed again but disconnected
@@ -419,11 +422,6 @@ class LMSController:
             return result
 
     def get_player_and_sync(self, slot_dict, request_siteid):
-
-        device_value = slot_dict.get('device')
-        if device_value and device_value != "alle" and device_value in self.nosite_players_dict:
-            return None, self.nosite_players_dict.get(device_value)
-
         err, sites = self.get_sites(request_siteid, slot_dict)
         if err:
             return err, None

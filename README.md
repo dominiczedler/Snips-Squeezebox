@@ -23,10 +23,6 @@ An app for [Snips.ai](https://snips.ai/) for controlling a Logitech Media Server
 - Synchronize multiple players :hear_no_evil:
 - Bluetooth speakers and headphones support :headphones:
 
-##### Example Device Setup:
-
-![Example Device Setup](./resources/Device%20Setup.png?raw=true "Example Device Setup")
-
 ## II. Installation
 
 :exclamation: The following instructions assume that [Snips](https://snips.gitbook.io/documentation/snips-basics) is
@@ -59,6 +55,10 @@ see what you can change.
       ```
     
 ## III. Configuration
+
+##### Example Device Setup:
+
+![Example Device Setup](./resources/Device%20Setup.png?raw=true "Example Device Setup")
 
 ### 1. Normal (single-room specific)
 

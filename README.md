@@ -70,3 +70,4 @@ some parameters that influence the behaviour of the alarm clock app:
 - Append podcasts to your queue
 - Append radio stations to your queue
 - Unsync player from a group
+- Configure rooms without LMS-Roomcontroller

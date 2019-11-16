@@ -281,7 +281,7 @@ class LMSController:
                 site = self.sites_dict[site_id]
                 for device_mac in site.devices_dict:
                     device = site.devices_dict[device_mac]
-                    if device.player.ref in players_dict:
+                    if not device.on_the_fly and device.player.ref in players_dict:
                         del players_dict[device.player.ref]
             players = {players_dict[ref].name: players_dict[ref] for ref in players_dict}
         else:

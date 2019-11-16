@@ -595,6 +595,7 @@ class LMSController:
         player.request(f"podcast playlist play item_id:{station_id}")
 
     def player_pause(self, slot_dict, request_siteid):
+        # TODO: pause not working if player is synced with others
         err, sites = self.get_sites(request_siteid, slot_dict)
         if err or not self.server.connected():
             return

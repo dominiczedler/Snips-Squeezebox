@@ -226,6 +226,14 @@ class LMSController:
         return all_names
 
     def get_sites(self, request_siteid, slot_dict=None, single=False, room_slot='room'):
+        """
+        Returns filtered site objects.
+        :param request_siteid: The siteId from Snips of the site where the user is
+        :param slot_dict: The slot dictionary from Snips
+        :param single: Whether an error should be raised if multiple sites are requested
+        :param room_slot: Name for the room slot; useful for sync intent where room slot has names like 'master'
+        :return: error, list of filtered site objects
+        """
         if not slot_dict or not slot_dict.get(room_slot):
             room_slot_value = "hier"
         else:

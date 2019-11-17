@@ -13,12 +13,9 @@ else
 
     if [ "$def_ver" != "$user_ver" ]
     then
-        echo "Current config options are overwrote by the new default value since they are out of date"
-        echo "The lastest config.ini version is $def_ver"
-        echo "Please change it manually to adapt to your old setup after installation"
+        echo "Current config options are overwrote by the new default value since they are out of date."
+        echo "Please change it manually to adapt to your old setup after installation."
         cp config.ini.default config.ini
-    else
-        echo "Good config.ini version: $user_ver"
     fi
 fi
 

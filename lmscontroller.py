@@ -64,6 +64,11 @@ class LMSController:
         self.inject_siteids_dict = dict()
 
     def get_inject_operations(self, requested_type: str) -> (str, list):
+        """
+        Returns a list with operation dictionaries for the snips-injection service,
+        :param requested_type: a special type of injection slots if requested in speech command
+        :return: error if there is one, list with operations
+        """
         if not self.server.connected():
             err = "Die Namen konnten nicht gesammelt werden. Es besteht keine Verbindung zum Medien Server."
             return err, None
